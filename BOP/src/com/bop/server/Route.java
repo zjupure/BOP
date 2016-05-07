@@ -17,7 +17,7 @@ public class Route {
 	@GET
 	@Path("/id1={id1}&id2={id2}")
 	@Produces("text/plain;charset=UTF-8")
-	public String sayHelloToUTF8(@PathParam("id1") String id1, @PathParam("id2") String id2) {
+	public String handleGetRequest(@PathParam("id1") String id1, @PathParam("id2") String id2) {
 		return "id1 = " + id1 + " id2 = " + id2;
 	}
 }
