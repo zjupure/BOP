@@ -8,3 +8,6 @@ GraphNode表示图中的一个节点，从API获取到的GraphNode可以知道�
 * AuthorNode表示根据author id查询到的一个作者节点
 * CiteNode表示根据paper id查询到的一个反向引用节点
 
+###2016.5.8
+
+修复一些Academy API请求的bug
