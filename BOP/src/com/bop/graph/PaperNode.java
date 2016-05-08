@@ -1,6 +1,6 @@
-package msra.bop.graph;
+package com.bop.graph;
 
-import msra.bop.json.*;
+import com.bop.json.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,22 +13,25 @@ public class PaperNode extends GraphNode {
     List<GraphNode> fields;
     GraphNode journal;
     GraphNode conference;
-    List<PaperNode> refs;
+    List<GraphNode> refs;
 
     public PaperNode(long id){
         super(id, GraphNode.PAPER_NODE);
         authors = new ArrayList<AuthorNode>();
         fields = new ArrayList<GraphNode>();
-        refs = new ArrayList<PaperNode>();
+        refs = new ArrayList<GraphNode>();
     }
 
     public void setPaperEntity(PaperEntity paperEntity){
         // adjacent authors
-        List<AuthorEntity> authorEntitiys = paperEntity.getAuthors();
-        for(AuthorEntity entity : authorEntitiys){
+        List<AuthorEntity> authorEntities = paperEntity.getAuthors();
+        for(AuthorEntity entity : authorEntities){
             AuthorNode authorNode = new AuthorNode(entity.getAuId());
-            authorNode.addAdjAff(new GraphNode(entity.getAfId(), GraphNode.AUTHOR_AFFILIATION_NODE));
-            authorNode.addAdjPaper(this);
+            if(entity.getAfId() > 0){
+                // affiliation == 0, means the author do not have author affiliation info
+                authorNode.addAdjAff(new GraphNode(entity.getAfId(), GraphNode.AUTHOR_AFFILIATION_NODE));
+            }
+            //authorNode.addAdjPaper(this);
             authors.add(authorNode);
         }
         // adjacent field of study
@@ -50,8 +53,8 @@ public class PaperNode extends GraphNode {
         // adjacent references
         List<Long> references = paperEntity.getRids();
         for(Long ref : references){
-            PaperNode paperNode = new PaperNode(ref);
-            refs.add(paperNode);
+            GraphNode refNode = new GraphNode(ref, GraphNode.REF_NODE);
+            refs.add(refNode);
         }
     }
 
@@ -64,9 +67,9 @@ public class PaperNode extends GraphNode {
     public boolean isAdjacent(GraphNode graphNode){
         boolean isAdj = false;
         if(graphNode.getNodeType() == GraphNode.PAPER_NODE){
-            isAdj =  checkRef((PaperNode)graphNode);
+            isAdj =  checkRef(graphNode);
         }else if(graphNode.getNodeType() == GraphNode.AUTHOR_NODE){
-            isAdj = checkAuthor((AuthorNode)graphNode);
+            isAdj = checkAuthor(graphNode);
         }else if(graphNode.getNodeType() == GraphNode.FIELD_NODE){
             isAdj = checkField(graphNode);
         }else if(graphNode.getNodeType() == GraphNode.JOURNAL_NODE){
@@ -79,11 +82,42 @@ public class PaperNode extends GraphNode {
     }
 
     /**
-     * judge the common relation between this node and paperNode, such as common author, journal
+     * get one node that connect this node and graphNode, then graphNode may be PaperNode, CiteNode, or AuthorNode
+     * @param graphNode
+     * @return
+     */
+    @Override
+    public List<Long> getMiddleNode(GraphNode graphNode) throws IllegalArgumentException{
+        List<Long> middles = new ArrayList<Long>();
+
+        if(graphNode instanceof PaperNode){
+            /** can only get the common authors, journal, ... */
+            middles = getBridgeNodes((PaperNode)graphNode);
+        }else if(graphNode instanceof CiteNode){
+            /** can get the middle reference paper, for example paper A--->paper C--->paper B,
+             * then get the paper C */
+            middles = getBridgeNodes((CiteNode)graphNode);
+        }else if(graphNode instanceof AuthorNode){
+            /** get the reference papers with author id == authorNode.id */
+            middles = getBridgeNodes((AuthorNode)graphNode);
+        }else {
+            throw new IllegalArgumentException("invalid graphNode arguments");
+        }
+
+        return middles;
+    }
+
+    /**
+     * get common nodes that connect this node and paperNode, for example, with common author, journal...
+     * paper A <----> author id <----> paper B
+     * paper A <----> journal id <----> paper B
+     * ...
+     * the middle reference will be deal separately,
+     * @see #getBridgeNodes(CiteNode)
      * @param paperNode
      * @return
      */
-    public List<Long> getMiddleNodes(PaperNode paperNode){
+    private List<Long> getBridgeNodes(PaperNode paperNode){
         List<Long> bridges = new ArrayList<Long>();
         // check the common author nodes
         bridges.addAll(getCommonAuthors(paperNode));
@@ -93,25 +127,25 @@ public class PaperNode extends GraphNode {
         bridges.addAll(getCommonJournal(paperNode));
         // check the common conference
         bridges.addAll(getCommonConference(paperNode));
-        // check the middle reference, deal separate
 
         return bridges;
     }
 
     /**
      * get the middle reference between this paper and paperNode(wrapped with citeNode)
+     * paper A -----> paper C -----> paper B (node B should transform to citeNode)
      * @param citeNode
      * @return
      */
-    public List<Long> getMiddleNodes(CiteNode citeNode){
+    private List<Long> getBridgeNodes(CiteNode citeNode){
         List<Long> mRefs = new ArrayList<Long>();
-        for(PaperNode paperNode : refs){
-            mRefs.add(paperNode.getNodeId());
+        for(GraphNode refNode : refs){
+            mRefs.add(refNode.getNodeId());
         }
 
         List<Long> nRefs = new ArrayList<Long>();
-        for(PaperNode paperNode : citeNode.citePapers){
-            nRefs.add(paperNode.getNodeId());
+        for(PaperNode refNode : citeNode.citePapers){
+            nRefs.add(refNode.getNodeId());
         }
         mRefs.retainAll(nRefs);
 
@@ -119,14 +153,15 @@ public class PaperNode extends GraphNode {
     }
 
     /**
-     * judge the common node between this node and authorNode
+     * get the middle reference paper with author id == authorNode.id
+     * paper A ----> paper C <----> author Id
      * @param authorNode
      * @return
      */
-    public List<Long> getMiddleNodes(AuthorNode authorNode){
+    public List<Long> getBridgeNodes(AuthorNode authorNode){
         List<Long> mRefs = new ArrayList<Long>();
-        for(PaperNode paperNode : refs){
-            mRefs.add(paperNode.getNodeId());
+        for(GraphNode refNode : refs){
+            mRefs.add(refNode.getNodeId());
         }
 
         List<Long> nRefs = new ArrayList<Long>();
@@ -138,11 +173,14 @@ public class PaperNode extends GraphNode {
         return mRefs;
     }
 
-    /** check the reference relationship */
-    private boolean checkRef(PaperNode paperNode){
+    /**
+     * check the reference relationship
+     * paper A ----> paper B
+     */
+    private boolean checkRef(GraphNode paperNode){
         // check the reference list
         long id = paperNode.getNodeId();
-        for(PaperNode ref : refs){
+        for(GraphNode ref : refs){
             if(id ==  ref.getNodeId()){
                 return true;
             }
@@ -150,8 +188,11 @@ public class PaperNode extends GraphNode {
         return false;
     }
 
-    /** check the author relationship */
-    private boolean checkAuthor(AuthorNode authorNode){
+    /**
+     * check the author relationship
+     * paper A <-----> author Id
+     */
+    private boolean checkAuthor(GraphNode authorNode){
         // check the author list
         long id = authorNode.getNodeId();
         for(AuthorNode author : authors){
@@ -162,7 +203,10 @@ public class PaperNode extends GraphNode {
         return false;
     }
 
-    /** check the field relation ship */
+    /**
+     * check the field relation ship
+     * paper A <-----> field Id
+     */
     private boolean checkField(GraphNode fieldNode){
         // check the field list
         long id = fieldNode.getNodeId();
@@ -174,7 +218,10 @@ public class PaperNode extends GraphNode {
         return false;
     }
 
-    /** check the journal relationship */
+    /**
+     * check the journal relationship
+     * paper A <-----> journal Id
+     */
     private boolean checkJournal(GraphNode journalNode){
         // check the journal
         long id = journalNode.getNodeId();
@@ -184,7 +231,10 @@ public class PaperNode extends GraphNode {
         return false;
     }
 
-    /** check the conference relationship */
+    /**
+     * check the conference relationship
+     * paper A <-----> conference Id
+     */
     private boolean checkConference(GraphNode conferenceNode){
         // check the conference
         long id = conferenceNode.getNodeId();
@@ -194,8 +244,11 @@ public class PaperNode extends GraphNode {
         return false;
     }
 
-    /** get the common authors */
-    public List<Long> getCommonAuthors(PaperNode paperNode){
+    /**
+     * get the common authors
+     * paper A <----> author Id <---->  paper B
+     */
+    private List<Long> getCommonAuthors(PaperNode paperNode){
         List<Long> mAuthors = new ArrayList<Long>();
         for(AuthorNode authorNode : authors){
             mAuthors.add(authorNode.getNodeId());
@@ -210,8 +263,11 @@ public class PaperNode extends GraphNode {
         return mAuthors;
     }
 
-    /** get the common fields */
-    public List<Long> getCommonField(PaperNode paperNode){
+    /**
+     * get the common fields
+     * paper A <----> field Id <----> paper B
+     */
+    private List<Long> getCommonField(PaperNode paperNode){
         List<Long> mFields = new ArrayList<Long>();
         for(GraphNode field : fields){
             mFields.add(field.getNodeId());
@@ -226,8 +282,11 @@ public class PaperNode extends GraphNode {
         return mFields;
     }
 
-    /** get the common journal */
-    public List<Long> getCommonJournal(PaperNode paperNode){
+    /**
+     * get the common journal
+     * paper A <----> journal Id <---->  paper B
+     */
+    private List<Long> getCommonJournal(PaperNode paperNode){
         List<Long> mJournals = new ArrayList<Long>();
         if(journal != null && paperNode.journal != null
                 && journal.getNodeId() == paperNode.journal.getNodeId()){
@@ -236,8 +295,11 @@ public class PaperNode extends GraphNode {
         return mJournals;
     }
 
-    /** get the common conference */
-    public List<Long> getCommonConference(PaperNode paperNode){
+    /**
+     * get the common conference
+     * paper A <----> conference Id <----> paper B
+     */
+    private List<Long> getCommonConference(PaperNode paperNode){
         List<Long> mConferences = new ArrayList<Long>();
         if(conference != null && paperNode.conference != null
                 && conference.getNodeId() == paperNode.conference.getNodeId()){

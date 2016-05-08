@@ -1,10 +1,10 @@
-package msra.bop.graph;
+package com.bop.graph;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Created by liuchun on 2016/5/7.
+ * Created by liuchun on 2016/5/2.
  */
 public class GraphPath {
     // node ids
@@ -39,8 +39,12 @@ public class GraphPath {
 
         return sb.toString();
     }
-    
-    /** change the path to string */
+
+    /**
+     * change a list of paths to json string
+     * @param paths
+     * @return
+     */
     public static String getPathString(List<GraphPath> paths){
         StringBuilder sb = new StringBuilder();
 

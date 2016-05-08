@@ -1,4 +1,4 @@
-package msra.bop.json;
+package com.bop.json;
 
 import java.util.ArrayList;
 import java.util.List;

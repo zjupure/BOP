@@ -1,6 +1,6 @@
-package msra.bop.graph;
+package com.bop.graph;
 
-import msra.bop.json.PaperEntity;
+import com.bop.json.PaperEntity;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -25,5 +25,10 @@ public class CiteNode extends GraphNode {
             paperNode.setPaperEntity(entity);
             citePapers.add(paperNode);
         }
+    }
+
+    @Override
+    public List<Long> getMiddleNode(GraphNode graphNode) throws IllegalArgumentException {
+        throw new IllegalArgumentException("citeNode can not be a start graphNode");
     }
 }

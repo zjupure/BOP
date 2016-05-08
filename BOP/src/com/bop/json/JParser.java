@@ -1,4 +1,4 @@
-package msra.bop.json;
+package com.bop.json;
 
 import com.alibaba.fastjson.JSON;
 
