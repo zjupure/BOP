@@ -81,7 +81,7 @@ public class AuthorNode extends GraphNode{
         List<Long> middles = new ArrayList<Long>();
 
         if(graphNode instanceof CiteNode){
-            middles = getBridgeNodes((CiteNode)graphNode);
+            middles = getBridgeNodes((CiteNode) graphNode);
         }else if(graphNode instanceof AuthorNode){
             middles = getBridgeNodes((AuthorNode)graphNode);
         }else if(graphNode instanceof PaperNode){
@@ -184,4 +184,27 @@ public class AuthorNode extends GraphNode{
         }
         return false;
     }
+
+    /**
+     * the affId is connect with the author or not
+     * @param affId
+     * @return
+     */
+    public boolean containAffiliation(long affId){
+        for(GraphNode affi : affiliations){
+            if(affId == affi.getNodeId()){
+                return true;
+            }
+        }
+        return false;
+    }
+
+	public List<PaperNode> getPapers() {
+		return papers;
+	}
+
+	public List<GraphNode> getAffiliations() {
+		return affiliations;
+	}
+    
 }

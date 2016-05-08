@@ -53,7 +53,7 @@ public class PaperNode extends GraphNode {
         // adjacent references
         List<Long> references = paperEntity.getRids();
         for(Long ref : references){
-            GraphNode refNode = new GraphNode(ref, GraphNode.REF_NODE);
+            GraphNode refNode = new GraphNode(ref, GraphNode.PAPER_NODE);
             refs.add(refNode);
         }
     }
@@ -88,7 +88,7 @@ public class PaperNode extends GraphNode {
      */
     @Override
     public List<Long> getMiddleNode(GraphNode graphNode) throws IllegalArgumentException{
-        List<Long> middles = new ArrayList<Long>();
+        List<Long> middles;
 
         if(graphNode instanceof PaperNode){
             /** can only get the common authors, journal, ... */
@@ -158,7 +158,7 @@ public class PaperNode extends GraphNode {
      * @param authorNode
      * @return
      */
-    public List<Long> getBridgeNodes(AuthorNode authorNode){
+    private List<Long> getBridgeNodes(AuthorNode authorNode){
         List<Long> mRefs = new ArrayList<Long>();
         for(GraphNode refNode : refs){
             mRefs.add(refNode.getNodeId());
@@ -307,4 +307,14 @@ public class PaperNode extends GraphNode {
         }
         return mConferences;
     }
+
+    public List<AuthorNode> getAuthors() {
+        return authors;
+    }
+
+    public List<GraphNode> getRefs() {
+		return refs;
+	}
+    
+    
 }

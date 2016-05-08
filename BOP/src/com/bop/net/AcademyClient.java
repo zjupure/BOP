@@ -1,16 +1,15 @@
 package com.bop.net;
 
 
-import com.bop.graph.AuthorNode;
-import com.bop.graph.CiteNode;
-import com.bop.graph.GraphNode;
-import com.bop.graph.PaperNode;
+import com.bop.graph.*;
 import com.bop.json.JParser;
 import com.bop.json.PaperEntity;
+
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpStatus;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.utils.URIBuilder;
@@ -18,6 +17,7 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.CharArrayBuffer;
+import org.apache.http.util.EntityUtils;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -34,7 +34,8 @@ import java.util.List;
  * Created by liuchun on 2016/5/2.
  */
 public class AcademyClient {
-
+	
+	private static final CloseableHttpClient httpClient = HttpClients.createDefault();
     /**
      * sync network request
      * @param url: must be build with the UrlBuilder
@@ -42,7 +43,7 @@ public class AcademyClient {
      */
     public static String getAcademyResp(String url){
         //
-        CloseableHttpClient httpClient = HttpClients.createDefault();
+        //CloseableHttpClient httpClient = HttpClients.createDefault();
         HttpGet httpGet = new HttpGet(url);
         try{
             CloseableHttpResponse response = httpClient.execute(httpGet);
@@ -51,6 +52,7 @@ public class AcademyClient {
             if(response.getStatusLine().getStatusCode() == HttpStatus.SC_OK){
                 HttpEntity entity = response.getEntity();
                 if(entity != null){
+                	/*
                     InputStream is = entity.getContent();
                     String charset = "UTF-8";
                     BufferedReader br = new BufferedReader(new InputStreamReader(is, charset));
@@ -62,7 +64,8 @@ public class AcademyClient {
                     }
                     //
                     is.close();
-                    json = buffer.toString();
+                    json = buffer.toString();*/
+                	json = EntityUtils.toString(entity);
                 }
             }
             response.close();
@@ -191,6 +194,64 @@ public class AcademyClient {
             citeNode.setEntities(entities);
         }
         return citeNode;
+    }
+
+    /**
+     * get paperId reference paper info
+     * @param paperId
+     * @param rids
+     * @return
+     */
+    public static RefNode getPaperRefInfo(long paperId, List<Long> rids){
+        String attrs = "Id,AA.AuId,AA.AfId,F.FId,J.JId,C.CId,RId";
+        String format = "Or(%s,Id=%d)";
+        String expr = "", url, json;
+        AcademyUrlBuilder builder = new AcademyUrlBuilder().setAttributes(attrs);
+        List<PaperEntity> entities;
+        RefNode refNode = new RefNode(paperId);
+
+        int index = 0;
+        for(int i = 0; i < rids.size(); i++){
+            if(index == 0){
+                expr = "Id=" + rids.get(i);
+                index++;
+                continue;
+            }else if(index == 1){
+                expr = String.format(format, expr, rids.get(i));
+                index++;
+                continue;
+            }
+            index++;
+            // build expr
+            expr = String.format(format, expr, rids.get(i));
+            //System.out.println(expr);
+            // start network request
+            if(index >= 100){
+                url = builder.setExpr(expr).build();
+                json = getAcademyResp(url);
+                entities = JParser.getPaperEntity(json);
+                if(entities.size() > 0){
+                    refNode.setEntities(entities);
+                }
+                index = 0;
+            }
+        }
+        // the last request
+        url = builder.setExpr(expr).build();
+        json = getAcademyResp(url);
+        entities = JParser.getPaperEntity(json);
+        if(entities.size() > 0){
+            refNode.setEntities(entities);
+        }
+
+        return refNode;
+    }
+
+    /**
+     * get httpclient
+     */
+    public static HttpClient getClient(){
+        return httpClient;
     }
 
     /** Builder the Academy URL */

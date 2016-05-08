@@ -1,6 +1,7 @@
 package com.bop.graph;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 
 /**
@@ -10,18 +11,20 @@ public class GraphPath {
     // node ids
     private List<Long> nodeIds = new ArrayList<Long>();
 
-    public GraphPath(){
-        nodeIds = new ArrayList<Long>();
-    }
-
     public GraphPath(Long... ids){
         for(Long id : ids){
             nodeIds.add(id);
         }
     }
 
-    public void push(Long nextId){
-        nodeIds.add(nextId);
+    /**
+     * judge the nodes in path containing duplicated nodes or not
+     * @return
+     */
+    public boolean isDistinct(){
+        HashSet<Long> set = new HashSet<Long>(nodeIds);
+
+        return set.size() == nodeIds.size();
     }
 
     @Override
@@ -59,5 +62,20 @@ public class GraphPath {
         sb.append(']');
 
         return sb.toString();
+    }
+
+    /**
+     * filter the paths that containg duplicated nodes
+     * @param paths
+     * @return
+     */
+    public static List<GraphPath> filterPaths(List<GraphPath> paths){
+        List<GraphPath> valids = new ArrayList<GraphPath>();
+        for(GraphPath path : paths){
+            if(path.isDistinct()){
+                valids.add(path);
+            }
+        }
+        return valids;
     }
 }

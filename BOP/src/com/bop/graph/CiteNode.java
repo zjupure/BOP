@@ -31,4 +31,8 @@ public class CiteNode extends GraphNode {
     public List<Long> getMiddleNode(GraphNode graphNode) throws IllegalArgumentException {
         throw new IllegalArgumentException("citeNode can not be a start graphNode");
     }
+
+	public List<PaperNode> getCitePapers() {
+		return citePapers;
+	}
 }

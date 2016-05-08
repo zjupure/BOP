@@ -9,6 +9,8 @@ import java.util.concurrent.ExecutionException;
  * Created by liuchun on 2016/5/7.
  */
 public class Test {
+    static GraphSearch search = new GraphSearch();
+
     public static void main(String[] args) {
 
         long id1 = 2179036997L;
@@ -23,7 +25,7 @@ public class Test {
         t += test(id1, id2);
 
         id1 = 2131087226L;
-        id2 = 2129379104L;
+        id2 = 2179036997L;
         // test [AuId, Id]
         t += test(id1, id2);
 
@@ -32,8 +34,10 @@ public class Test {
         // test [AuId, AuId]
         t += test(id1, id2);
 
-        long avr = t/4;
+        double avr = t/4.0;
         System.out.println("average time: " + avr);
+        
+        System.out.println("test over\n\n");
     }
 
     public static long test(long id1, long id2){
@@ -41,7 +45,7 @@ public class Test {
 
         start_time = System.currentTimeMillis();
         System.out.println("start time: " + start_time);
-        GraphSearch search = new GraphSearch();
+        //GraphSearch search = new GraphSearch();
         try{
             String json = search.search(id1, id2);
 
@@ -59,7 +63,6 @@ public class Test {
             e.printStackTrace();
         }
 
-        System.out.println("test over");
         return 0;
     }
 }
