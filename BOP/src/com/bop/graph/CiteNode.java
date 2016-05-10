@@ -9,6 +9,9 @@ import java.util.List;
  * Created by liuchun on 2016/5/7.
  * Reverse references
  * all the paper in List<PaperNode> will cite the current paper
+ *
+ * because one paper may be have large cite counts
+ * @see RefNode are recommended
  */
 public class CiteNode extends GraphNode {
     List<PaperNode> citePapers;
@@ -18,7 +21,7 @@ public class CiteNode extends GraphNode {
         citePapers = new ArrayList<PaperNode>();
     }
 
-    public void setEntities(List<PaperEntity> entities){
+    public void addEntities(List<PaperEntity> entities){
         // set cited paper
         for(PaperEntity entity : entities){
             PaperNode paperNode = new PaperNode(entity.getId());

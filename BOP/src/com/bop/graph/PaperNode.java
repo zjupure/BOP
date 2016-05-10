@@ -82,7 +82,10 @@ public class PaperNode extends GraphNode {
     }
 
     /**
-     * get one node that connect this node and graphNode, then graphNode may be PaperNode, CiteNode, or AuthorNode
+     * get one node that connect this node and graphNode, then graphNode may be PaperNode or AuthorNode
+     * CiteNode is deprecated
+     * if graphNode is paperNode, to get full paths, left paperNode should transform to RefNode again
+     * to get the paper A ---> paper C ---> paper B paths
      * @param graphNode
      * @return
      */
@@ -92,14 +95,14 @@ public class PaperNode extends GraphNode {
 
         if(graphNode instanceof PaperNode){
             /** can only get the common authors, journal, ... */
-            middles = getBridgeNodes((PaperNode)graphNode);
+            middles = getBridgeNodes((PaperNode) graphNode);
+        }else if(graphNode instanceof AuthorNode){
+            /** get the reference papers with author id == authorNode.id */
+            middles = getBridgeNodes((AuthorNode) graphNode);
         }else if(graphNode instanceof CiteNode){
             /** can get the middle reference paper, for example paper A--->paper C--->paper B,
              * then get the paper C */
-            middles = getBridgeNodes((CiteNode)graphNode);
-        }else if(graphNode instanceof AuthorNode){
-            /** get the reference papers with author id == authorNode.id */
-            middles = getBridgeNodes((AuthorNode)graphNode);
+            middles = getBridgeNodes((CiteNode) graphNode);
         }else {
             throw new IllegalArgumentException("invalid graphNode arguments");
         }
@@ -113,7 +116,7 @@ public class PaperNode extends GraphNode {
      * paper A <----> journal id <----> paper B
      * ...
      * the middle reference will be deal separately,
-     * @see #getBridgeNodes(CiteNode)
+     * @see RefNode#getMiddleNode(GraphNode)
      * @param paperNode
      * @return
      */
@@ -132,45 +135,41 @@ public class PaperNode extends GraphNode {
     }
 
     /**
-     * get the middle reference between this paper and paperNode(wrapped with citeNode)
-     * paper A -----> paper C -----> paper B (node B should transform to citeNode)
-     * @param citeNode
-     * @return
-     */
-    private List<Long> getBridgeNodes(CiteNode citeNode){
-        List<Long> mRefs = new ArrayList<Long>();
-        for(GraphNode refNode : refs){
-            mRefs.add(refNode.getNodeId());
-        }
-
-        List<Long> nRefs = new ArrayList<Long>();
-        for(PaperNode refNode : citeNode.citePapers){
-            nRefs.add(refNode.getNodeId());
-        }
-        mRefs.retainAll(nRefs);
-
-        return mRefs;
-    }
-
-    /**
      * get the middle reference paper with author id == authorNode.id
      * paper A ----> paper C <----> author Id
      * @param authorNode
      * @return
      */
     private List<Long> getBridgeNodes(AuthorNode authorNode){
-        List<Long> mRefs = new ArrayList<Long>();
-        for(GraphNode refNode : refs){
-            mRefs.add(refNode.getNodeId());
-        }
+        List<Long> mPapers = new ArrayList<Long>();
 
-        List<Long> nRefs = new ArrayList<Long>();
         for(PaperNode paperNode : authorNode.papers){
-            nRefs.add(paperNode.getNodeId());
+            if(isAdjacent(paperNode)){
+                mPapers.add(paperNode.getNodeId());
+            }
         }
-        mRefs.retainAll(nRefs);
 
-        return mRefs;
+        return mPapers;
+    }
+
+    /**
+     * get the middle reference between this paper and paperNode(wrapped with citeNode)
+     * paper A -----> paper C -----> paper B (node B should transform to citeNode)
+     * 
+     * @param citeNode
+     * @return
+     */
+   
+    private List<Long> getBridgeNodes(CiteNode citeNode){
+        List<Long> mPapers = new ArrayList<Long>();
+
+        for(PaperNode paperNode : citeNode.citePapers){
+            if(isAdjacent(paperNode)){
+                mPapers.add(paperNode.getNodeId());
+            }
+        }
+
+        return mPapers;
     }
 
     /**
@@ -253,11 +252,18 @@ public class PaperNode extends GraphNode {
         for(AuthorNode authorNode : authors){
             mAuthors.add(authorNode.getNodeId());
         }
+        if(mAuthors.size() == 0){
+            return mAuthors;
+        }
 
         List<Long> nAuthors = new ArrayList<Long>();
         for(AuthorNode authorNode : paperNode.authors){
             nAuthors.add(authorNode.getNodeId());
         }
+        if(nAuthors.size() == 0){
+            return nAuthors;
+        }
+        // intersection
         mAuthors.retainAll(nAuthors);
 
         return mAuthors;
@@ -272,11 +278,18 @@ public class PaperNode extends GraphNode {
         for(GraphNode field : fields){
             mFields.add(field.getNodeId());
         }
+        if(mFields.size() == 0){
+            return mFields;
+        }
 
         List<Long> nFields = new ArrayList<Long>();
         for(GraphNode field : paperNode.fields){
             nFields.add(field.getNodeId());
         }
+        if(nFields.size() == 0){
+            return nFields;
+        }
+        // intersection
         mFields.retainAll(nFields);
 
         return mFields;
@@ -315,6 +328,16 @@ public class PaperNode extends GraphNode {
     public List<GraphNode> getRefs() {
 		return refs;
 	}
-    
-    
+
+    public List<GraphNode> getFields() {
+        return fields;
+    }
+
+    public GraphNode getConference() {
+        return conference;
+    }
+
+    public GraphNode getJournal() {
+        return journal;
+    }
 }

@@ -23,13 +23,11 @@ public class GraphSearch {
 
     static {
         // preload academyClient
-        AcademyClient.getClient();
+        AcademyClient.preLoad();
     }
 
     public String search(long id1, long id2) throws InterruptedException, ExecutionException{
 
-        refNode = null;
-        citeNode = null;
         Future<GraphNode> rsp1 = threadpool.submit(new RequestCall(id1));
         Future<GraphNode> rsp2 = threadpool.submit(new RequestCall(id2));
         // block in get method
@@ -114,7 +112,6 @@ public class GraphSearch {
         }
 
         CiteNode citeNode = getCiteNode();
-
         if(citeNode != null){
             List<Long> refs = startNode.getMiddleNode(citeNode);
             for(long id : refs){
@@ -330,7 +327,7 @@ public class GraphSearch {
     }
 
     /**
-     * try to get RefNode, must be lock
+     * try to get the RefNode, must be locked
      * @return
      */
     private RefNode getRefNode(){
@@ -353,7 +350,8 @@ public class GraphSearch {
     }
 
     /**
-     * try to get the citeNode
+     * try to get the citeNode, must be locked
+     * @return
      */
     private CiteNode getCiteNode(){
         // must lock to assure thread safe
@@ -361,11 +359,6 @@ public class GraphSearch {
             synchronized (this){
                 if(citeNode == null){
                     try{
-
-                        if(rspEnd == null){
-                            System.out.println("this is null point rspEnd");
-                        }
-
                         citeNode = rspEnd.get();
                     }catch (InterruptedException e){
                         e.printStackTrace();

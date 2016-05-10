@@ -9,20 +9,15 @@ import org.apache.http.HttpEntity;
 import org.apache.http.HttpStatus;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicNameValuePair;
-import org.apache.http.util.CharArrayBuffer;
 import org.apache.http.util.EntityUtils;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -34,7 +29,12 @@ import java.util.List;
  * Created by liuchun on 2016/5/2.
  */
 public class AcademyClient {
-	
+	public static final int PAPER_LEFT = 0;
+    public static final int AUTHOR_LEFT = 1;
+    public static final int FIELD_LEFT = 2;
+    public static final int JOURNAL_LEFT = 3;
+    public static final int CONFERENCE_LEFT = 4;
+
 	private static final CloseableHttpClient httpClient = HttpClients.createDefault();
     /**
      * sync network request
@@ -52,11 +52,15 @@ public class AcademyClient {
             if(response.getStatusLine().getStatusCode() == HttpStatus.SC_OK){
                 HttpEntity entity = response.getEntity();
                 if(entity != null){
-                	/*
+                    /*
                     InputStream is = entity.getContent();
+                    int i = (int)entity.getContentLength();
+                    if (i < 0) {
+                        i = 4096;
+                    }
                     String charset = "UTF-8";
                     BufferedReader br = new BufferedReader(new InputStreamReader(is, charset));
-                    CharArrayBuffer buffer = new CharArrayBuffer(4096);
+                    CharArrayBuffer buffer = new CharArrayBuffer(i);
                     char[] tmp = new char[4096];
                     int len;
                     while((len = br.read(tmp)) != -1){
@@ -136,6 +140,7 @@ public class AcademyClient {
         String attrs = "Id,AA.AuId,AA.AfId,F.FId,J.JId,C.CId,RId";
         String url = new AcademyUrlBuilder()
                 .setExpr("Id=" + paperId)
+                .setCount(1)    // a fix paperId only return one entity
                 .setAttributes(attrs)
                 .build();
         String json = getAcademyResp(url);
@@ -160,7 +165,7 @@ public class AcademyClient {
      */
     public static AuthorNode getAuthorInfo(long authorId){
         String attrs = "Id,AA.AuId,AA.AfId,F.FId,J.JId,C.CId,RId";
-        String expr = "Composite(AA.AuId=" + authorId + ")";
+        String expr = String.format("Composite(AA.AuId=%d)", authorId);
         String url = new AcademyUrlBuilder()
                 .setExpr(expr)
                 .setAttributes(attrs)
@@ -173,27 +178,6 @@ public class AcademyClient {
             authorNode.setEntities(entities);
         }
         return authorNode;
-    }
-
-    /**
-     * get all the papers that cite the paperId
-     * @param paperId
-     * @return
-     */
-    public static CiteNode getCiteInfo(long paperId){
-        String attrs = "Id,AA.AuId,AA.AfId,F.FId,J.JId,C.CId,RId";
-        String url = new AcademyUrlBuilder()
-                .setExpr("RId=" + paperId)
-                .setAttributes(attrs)
-                .build();
-        String json = getAcademyResp(url);
-        List<PaperEntity> entities = JParser.getPaperEntity(json);
-        CiteNode citeNode = null;
-        if(entities.size() > 0){
-            citeNode = new CiteNode(paperId);
-            citeNode.setEntities(entities);
-        }
-        return citeNode;
     }
 
     /**
@@ -227,37 +211,162 @@ public class AcademyClient {
             //System.out.println(expr);
             // start network request
             if(index >= 100){
-                url = builder.setExpr(expr).build();
+                url = builder.setExpr(expr)
+                        .setCount(100)
+                        .build();
                 json = getAcademyResp(url);
                 entities = JParser.getPaperEntity(json);
                 if(entities.size() > 0){
-                    refNode.setEntities(entities);
+                    refNode.addEntities(entities);
                 }
                 index = 0;
             }
         }
         // the last request
-        url = builder.setExpr(expr).build();
+        url = builder.setExpr(expr)
+                .setCount(100)
+                .build();
         json = getAcademyResp(url);
         entities = JParser.getPaperEntity(json);
         if(entities.size() > 0){
-            refNode.setEntities(entities);
+            refNode.addEntities(entities);
         }
+        //System.out.println(expr);
 
         return refNode;
     }
 
     /**
-     * get httpclient
+     * query the middle paper that cite the right paper
+     * paper A ---> paper C ---> paper B
+     * @param ids
+     * @param paperId
+     * @return
      */
-    public static HttpClient getClient(){
-        return httpClient;
+    public static List<Long> getMiddlePapers(List<Long> ids, long paperId){
+        List<Long> middles = new ArrayList<Long>();
+        String or_format = "Or(%s,Id=%d)";
+        String and_format = "And(%s,RId=%d)";
+        String expr = "", url, json;
+        AcademyUrlBuilder builder = new AcademyUrlBuilder().setAttributes("Id");
+        List<PaperEntity> entities;
+
+        int index = 0;
+        for(int i = 0; i < ids.size(); i++){
+            if(index == 0){
+                expr = String.format("Id=%d", ids.get(0));
+                index++;
+                continue;
+            }else if(index == 1){
+                expr = String.format(or_format, expr, ids.get(i));
+                index++;
+                continue;
+            }
+            index++;
+            // build expr
+            expr = String.format(or_format, expr, ids.get(i));
+            //System.out.println(expr);
+            // start network request
+            if(index >= 100){
+                // build final expr
+                expr = String.format(and_format, expr, paperId);
+                url = builder.setExpr(expr)
+                        .setCount(100)
+                        .build();
+                json = getAcademyResp(url);
+                entities = JParser.getPaperEntity(json);
+                if(entities.size() > 0){
+                    for(PaperEntity entity : entities){
+                        middles.add(entity.getId());
+                    }
+                }
+                index = 0;
+            }
+        }
+        // the last request
+        expr = String.format(and_format, expr, paperId);
+        url = builder.setExpr(expr)
+                .setCount(100)
+                .build();
+        json = getAcademyResp(url);
+        entities = JParser.getPaperEntity(json);
+        if(entities.size() > 0){
+            for(PaperEntity entity : entities){
+                middles.add(entity.getId());
+            }
+        }
+        System.out.println(expr);
+
+        return middles;
+    }
+
+    /**
+     * query the middle paper that cite the right paper with common info Id, such as authors, journal...
+     * @param Id
+     * @param paperId
+     * @return
+     */
+    public static List<Long> getMiddlePapers(long Id, long paperId, int type){
+        List<Long> middles = new ArrayList<Long>();
+        String and_format = "And(%s,RId=%d)";
+        String[] type_format = {"Id=%d", "Composite(AA.AuId=%d)", "Composite(F.FId=%d)", "Composite(J.JId=%d)",
+                "Composite(C.CId=%d)"};
+        String expr = "", url, json;
+        AcademyUrlBuilder builder = new AcademyUrlBuilder().setAttributes("Id");
+        List<PaperEntity> entities;
+
+        expr = String.format(type_format[type], Id);
+        expr = String.format(and_format, expr, paperId);
+        url = builder.setExpr(expr).build();
+        json = getAcademyResp(url);
+        entities = JParser.getPaperEntity(json);
+        if(entities.size() > 0){
+            for(PaperEntity entity : entities){
+                middles.add(entity.getId());
+            }
+        }
+        System.out.println(expr);
+
+        return middles;
+    }
+
+    /**
+     * get all the papers that cite the paperId
+     * @param paperId
+     * @return
+     */
+    @Deprecated
+    public static CiteNode getCiteInfo(long paperId){
+        String attrs = "Id,AA.AuId,AA.AfId,F.FId,J.JId,C.CId";
+        int count = 10000;
+        String url = new AcademyUrlBuilder()
+                .setExpr("RId=" + paperId)
+                .setCount(count)
+                .setAttributes(attrs)
+                .build();
+        String json = getAcademyResp(url);
+        List<PaperEntity> entities = JParser.getPaperEntity(json);
+        CiteNode citeNode = null;
+        if(entities.size() > 0){
+            citeNode = new CiteNode(paperId);
+            citeNode.addEntities(entities);
+        }
+        return citeNode;
+    }
+
+
+    /**
+     * preLoad to init the httpClient instance
+     */
+    public static void preLoad(){
+        // empty
     }
 
     /** Builder the Academy URL */
     public static class AcademyUrlBuilder{
         public static final String BASE_URI = "https://oxfordhk.azure-api.net/academic/v1.0/evaluate";
         public static final String SUB_KEY = "f7cc29509a8443c5b3a5e56b0e38b5a6";
+        public static final int DEFAULT_COUNT = 1000;
         HashMap<String, String> params = new HashMap<String, String>();
 
         public AcademyUrlBuilder addParam(String key, String value){
@@ -304,6 +413,8 @@ public class AcademyClient {
                     nvps.add(new BasicNameValuePair(key, params.get(key)));
                 }else if(key.equals("subscription-key")){
                     nvps.add(new BasicNameValuePair("subscription-key", SUB_KEY));
+                }else if(key.equals("count")){
+                    nvps.add(new BasicNameValuePair("count",Integer.toString(DEFAULT_COUNT)));
                 }
             }
 

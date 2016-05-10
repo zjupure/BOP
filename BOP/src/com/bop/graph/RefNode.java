@@ -7,7 +7,7 @@ import java.util.List;
 
 /**
  * Created by liuchun on 2016/5/8.
- * Reverse references
+ * Forward references
  * the paper will cite all the paper in List<PaperNode>
  */
 public class RefNode extends GraphNode{
@@ -18,7 +18,7 @@ public class RefNode extends GraphNode{
         refPapers = new ArrayList<PaperNode>();
     }
 
-    public void setEntities(List<PaperEntity> entities){
+    public void addEntities(List<PaperEntity> entities){
         // set cited paper
         for(PaperEntity entity : entities){
             PaperNode paperNode = new PaperNode(entity.getId());
@@ -27,6 +27,13 @@ public class RefNode extends GraphNode{
         }
     }
 
+    /**
+     * get the middle paper has chain reference relation ship
+     * paper A ---> paper C ---> paper B (paper A has been transform to RefNode)
+     * @param graphNode
+     * @return
+     * @throws IllegalArgumentException
+     */
     @Override
     public List<Long> getMiddleNode(GraphNode graphNode) throws IllegalArgumentException {
         List<Long> middles = new ArrayList<Long>();

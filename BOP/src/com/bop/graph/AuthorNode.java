@@ -19,6 +19,7 @@ public class AuthorNode extends GraphNode{
         affiliations = new ArrayList<GraphNode>();
     }
 
+    /** @hide */
     public void addAdjPaper(PaperNode paper){
         papers.add(paper);
     }
@@ -78,15 +79,17 @@ public class AuthorNode extends GraphNode{
      */
     @Override
     public List<Long> getMiddleNode(GraphNode graphNode) throws IllegalArgumentException{
-        List<Long> middles = new ArrayList<Long>();
+        List<Long> middles;
 
-        if(graphNode instanceof CiteNode){
-            middles = getBridgeNodes((CiteNode) graphNode);
+        if(graphNode instanceof PaperNode){
+            /** get the paper with author that cite the right paperNode */
+            middles = getBridgeNodes((PaperNode) graphNode);
         }else if(graphNode instanceof AuthorNode){
+            /** get the common paper with two authors or common affiliations the authors belong to */
             middles = getBridgeNodes((AuthorNode)graphNode);
-        }else if(graphNode instanceof PaperNode){
-            // return empty list to avod exception
-            //throw new IllegalArgumentException("paperNode should be transform to citeNode manually");
+        }else if(graphNode instanceof CiteNode){
+            /** deprecated */
+            middles = getBridgeNodes((CiteNode) graphNode);
         }else{
             throw new IllegalArgumentException("invalid graphNode arguments");
         }
@@ -95,24 +98,21 @@ public class AuthorNode extends GraphNode{
     }
 
     /**
-     * get the paper with this author that also has reference to citeNode
-     * author Id <----> paper C ---->  paper B
-     * @param citeNode
+     * get the paper that has reference to the paperNode
+     * author Id <---> paper C ---> paper B
+     * @param paperNode
      * @return
      */
-    private List<Long> getBridgeNodes(CiteNode citeNode){
-        List<Long> mRefs = new ArrayList<Long>();
-        for(PaperNode paperNode : papers){
-            mRefs.add(paperNode.getNodeId());
+    private List<Long> getBridgeNodes(PaperNode paperNode){
+        List<Long> mPapers = new ArrayList<Long>();
+
+        for(PaperNode paper : papers){
+            if(paper.isAdjacent(paperNode)){
+                mPapers.add(paper.getNodeId());
+            }
         }
 
-        List<Long> nRefs = new ArrayList<Long>();
-        for(PaperNode paperNode : citeNode.citePapers){
-            nRefs.add(paperNode.getNodeId());
-        }
-        mRefs.retainAll(nRefs);
-
-        return mRefs;
+        return mPapers;
     }
 
     /**
@@ -123,24 +123,55 @@ public class AuthorNode extends GraphNode{
      * @return
      */
     private List<Long> getBridgeNodes(AuthorNode authorNode){
-        List<Long> mNodes = new ArrayList<Long>();
+        List<Long> mPapers = new ArrayList<Long>();
+        /** get common papers */
         for(PaperNode paperNode : papers){
-            mNodes.add(paperNode.getNodeId());
+            if(paperNode.isAdjacent(authorNode)){
+                mPapers.add(paperNode.getNodeId());
+            }
         }
+
+        /** get common affiliations */
+        List<Long> mAffi = new ArrayList<Long>();
         for(GraphNode affiNode : affiliations){
-            mNodes.add(affiNode.getNodeId());
+            mAffi.add(affiNode.getNodeId());
+        }
+        if(mAffi.size() == 0){
+            return mPapers;
         }
 
-        List<Long> nNodes = new ArrayList<Long>();
-        for(PaperNode paperNode : authorNode.papers){
-            nNodes.add(paperNode.getNodeId());
-        }
+        List<Long> nAffi = new ArrayList<Long>();
         for(GraphNode affiNode : authorNode.affiliations){
-            nNodes.add(affiNode.getNodeId());
+            nAffi.add(affiNode.getNodeId());
         }
-        mNodes.retainAll(nNodes);
+        if(nAffi.size() == 0){
+            return mPapers;
+        }
+        // intersection
+        mAffi.retainAll(nAffi);
+        mPapers.addAll(mAffi);
 
-        return mNodes;
+        return mPapers;
+    }
+
+    /**
+     * get the paper with this author that also has reference to citeNode
+     * author Id <----> paper C ---->  paper B
+     * @see #getBridgeNodes(PaperNode)
+     * @param citeNode
+     * @return
+     */
+    @Deprecated
+    private List<Long> getBridgeNodes(CiteNode citeNode){
+        List<Long> mPapers = new ArrayList<Long>();
+
+        for(PaperNode paperNode : citeNode.citePapers){
+            if(isAdjacent(paperNode)){
+                mPapers.add(paperNode.getNodeId());
+            }
+        }
+
+        return mPapers;
     }
 
     /**
@@ -157,13 +188,12 @@ public class AuthorNode extends GraphNode{
                     return true;
                 }
             }
-        }else{
-            // check the paper list with this author
-            long id = paperNode.getNodeId();
-            for(PaperNode paper : papers){
-                if(id == paper.getNodeId()){
-                    return true;
-                }
+        }
+        // if cannot find, then check the paper list with this author
+        long id = paperNode.getNodeId();
+        for(PaperNode paper : papers){
+            if(id == paper.getNodeId()){
+                return true;
             }
         }
 
