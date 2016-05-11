@@ -29,19 +29,19 @@ import java.util.List;
  * Created by liuchun on 2016/5/2.
  */
 public class AcademyClient {
-	public static final int PAPER_LEFT = 0;
-    public static final int AUTHOR_LEFT = 1;
-    public static final int FIELD_LEFT = 2;
-    public static final int JOURNAL_LEFT = 3;
-    public static final int CONFERENCE_LEFT = 4;
-
+    //
 	private static final CloseableHttpClient httpClient = HttpClients.createDefault();
+
+    public static int count = 0;
     /**
      * sync network request
      * @param url: must be build with the UrlBuilder
      * @return json string
      */
     public static String getAcademyResp(String url){
+        //
+        //System.out.println(url);
+        count++;
         //
         //CloseableHttpClient httpClient = HttpClients.createDefault();
         HttpGet httpGet = new HttpGet(url);
@@ -338,22 +338,36 @@ public class AcademyClient {
     @Deprecated
     public static CiteNode getCiteInfo(long paperId){
         String attrs = "Id,AA.AuId,AA.AfId,F.FId,J.JId,C.CId";
-        int count = 10000;
-        String url = new AcademyUrlBuilder()
-                .setExpr("RId=" + paperId)
-                .setCount(count)
-                .setAttributes(attrs)
-                .build();
-        String json = getAcademyResp(url);
-        List<PaperEntity> entities = JParser.getPaperEntity(json);
-        CiteNode citeNode = null;
-        if(entities.size() > 0){
-            citeNode = new CiteNode(paperId);
-            citeNode.addEntities(entities);
+        String expr = "RId=" + paperId;
+        String json, url;
+        int count = 1000;
+        int offset = 0;
+        AcademyUrlBuilder builder = new AcademyUrlBuilder()
+                .setExpr(expr)
+                .setAttributes(attrs);
+
+        List<PaperEntity> entities;
+        CiteNode citeNode = new CiteNode(paperId);
+
+        while(true){
+            url = builder.setCount(count)
+                    .setOffset(offset)
+                    .build();
+            json = getAcademyResp(url);
+            entities = JParser.getPaperEntity(json);
+            if(entities.size() > 0){
+                citeNode.addEntities(entities);
+            }
+            if(entities.size() < count){
+                //
+                break;
+            }
+
+            offset += count;
         }
+
         return citeNode;
     }
-
 
     /**
      * preLoad to init the httpClient instance

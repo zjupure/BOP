@@ -3,6 +3,13 @@ package com.bop.algorithm;
 import com.bop.graph.*;
 import com.bop.net.AcademyClient;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.lang.reflect.WildcardType;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
@@ -27,6 +34,8 @@ public class GraphSearch {
     }
 
     public String search(long id1, long id2) throws InterruptedException, ExecutionException{
+
+        AcademyClient.count = 0;
 
         Future<GraphNode> rsp1 = threadpool.submit(new RequestCall(id1));
         Future<GraphNode> rsp2 = threadpool.submit(new RequestCall(id2));
@@ -69,9 +78,14 @@ public class GraphSearch {
 
         //List<GraphPath> paths = one_hop;
         List<GraphPath> paths = GraphPath.filterPaths(one_hop);
-        System.out.println("valid path number: " + paths.size());
 
-        return GraphPath.getPathString(paths);
+        //System.out.println("network get count: " + AcademyClient.count);
+        //System.out.println("valid path number: " + paths.size());
+        String results = GraphPath.getPathString(paths);
+        
+        //writeToFile(id1, id2, paths.size(), results);
+
+        return results;
     }
 
     /**
@@ -106,18 +120,16 @@ public class GraphSearch {
             paths.add(path);
         }
 
-        // endNode is paperNode, then get all papers that reference to it
-        if(endNode.getNodeType() != GraphNode.PAPER_NODE){
+        /** [Id, Id] has to find the Id--->Id--->Id paths */
+        if(startNode.getNodeType() != GraphNode.PAPER_NODE || endNode.getNodeType() != GraphNode.PAPER_NODE){
             return paths;
         }
 
-        CiteNode citeNode = getCiteNode();
-        if(citeNode != null){
-            List<Long> refs = startNode.getMiddleNode(citeNode);
-            for(long id : refs){
-                GraphPath path = new GraphPath(startNode.getNodeId(), id, endNode.getNodeId());
-                paths.add(path);
-            }
+        RefNode refNode = getRefNode();
+        List<Long> middles = refNode.getMiddleNode(endNode);
+        for(Long id : middles){
+            GraphPath path = new GraphPath(startNode.getNodeId(), id, endNode.getNodeId());
+            paths.add(path);
         }
 
         return paths;
@@ -372,7 +384,35 @@ public class GraphSearch {
         return (CiteNode)citeNode;
     }
 
-
+    /**
+     * wirte results to log file
+     * @param id1
+     * @param id2
+     * @param size
+     * @param result
+     */
+    private void writeToFile(long id1, long id2, int size, String result){
+    	String filename = id1 + "_" + id2 + ".txt";
+    	File mFile = new File(filename);
+    	FileWriter writer = null;
+    	try{
+    		writer = new FileWriter(mFile);
+    		writer.write("[" + id1 + "," + id2 + "]\n");
+    		writer.write("path numbers: " + size + "\n");
+    		writer.write(result + "\n");
+    	}catch(IOException e){
+    		e.printStackTrace();
+    	}finally{
+    		if(writer != null){
+    			try{
+    				writer.close();
+    			}catch(IOException e){
+    				e.printStackTrace();
+    			}		
+    		}
+    	}
+    	
+    }
 
     /**
      * Route algorithm in the background

@@ -123,35 +123,32 @@ public class AuthorNode extends GraphNode{
      * @return
      */
     private List<Long> getBridgeNodes(AuthorNode authorNode){
-        List<Long> mPapers = new ArrayList<Long>();
-        /** get common papers */
+        List<Long> mBridges = new ArrayList<Long>();
+        /** get common papers and affiliations */
         for(PaperNode paperNode : papers){
-            if(paperNode.isAdjacent(authorNode)){
-                mPapers.add(paperNode.getNodeId());
-            }
+            mBridges.add(paperNode.getNodeId());
         }
-
-        /** get common affiliations */
-        List<Long> mAffi = new ArrayList<Long>();
         for(GraphNode affiNode : affiliations){
-            mAffi.add(affiNode.getNodeId());
+            mBridges.add(affiNode.getNodeId());
         }
-        if(mAffi.size() == 0){
-            return mPapers;
+        if(mBridges.size() == 0){
+            return mBridges;
         }
 
-        List<Long> nAffi = new ArrayList<Long>();
-        for(GraphNode affiNode : authorNode.affiliations){
-            nAffi.add(affiNode.getNodeId());
+        List<Long> nBridges = new ArrayList<Long>();
+        for(PaperNode paperNode : authorNode.papers){
+            nBridges.add(paperNode.getNodeId());
         }
-        if(nAffi.size() == 0){
-            return mPapers;
+        for(GraphNode affiNode : authorNode.affiliations){
+            nBridges.add(affiNode.getNodeId());
+        }
+        if(nBridges.size() == 0){
+            return nBridges;
         }
         // intersection
-        mAffi.retainAll(nAffi);
-        mPapers.addAll(mAffi);
+        mBridges.retainAll(nBridges);
 
-        return mPapers;
+        return mBridges;
     }
 
     /**
@@ -161,7 +158,6 @@ public class AuthorNode extends GraphNode{
      * @param citeNode
      * @return
      */
-    @Deprecated
     private List<Long> getBridgeNodes(CiteNode citeNode){
         List<Long> mPapers = new ArrayList<Long>();
 

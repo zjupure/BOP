@@ -15,38 +15,24 @@ public class Test {
     	
         //pressureTest();
     	simpleTest();
-        //long id1 = 2126125555L;
-        //long id2 = 2153635508L;  // massive paper has cited this paper
-        // paperId, paperId
-        //long t = test(id1, id2);
-
-        //id1 = 2175015405L;
-        //id2 = 2121939561L;
-        //t = test(id1, id2);
-
+        //long id1 = 2099495348L;
+        //long id2 = 2094437628L;
+        //test(id1, id2);
     }
-    
+
     public static void pressureTest(){
-    	long id1 = 2179036997L;
-    	long id2 = 2152770371L;
-    	long t = 0;
-    	int count = 10;
-    	double score = 0;
-    	
-    	for(int i = 0; i < count; i++){
-    		long t0 = test(id1, id2);
-    		score += (1 - t0*1.0/1000/300);
-    		t += t0;
-    	}
-    	
-    	double avr = t*1.0/count;
-    	System.out.println("average time: " + avr);
-    	score *= 10;
-    	System.out.println("score: " + score);
-    	
-    	System.out.println("test over\n");
+        long id1 = 2126125555L;
+        long id2 = 2153635508L;  // massive paper has cited this paper
+        // paperId, paperId
+        long t = test(id1, id2);
+
+        id1 = 2175015405L;
+        id2 = 2121939561L;
+        // authorId, authorId
+        t = test(id1, id2);
     }
     
+
     public static void simpleTest(){
     	long id1 = 2179036997L;
         long id2 = 2152770371L;
@@ -55,6 +41,7 @@ public class Test {
         // test [Id, Id]
         t += test(id1, id2);
 
+        /*
         id1 = 2179036997L;
         id2 = 2131087226L;
         // test [Id, AuId]
@@ -71,7 +58,7 @@ public class Test {
         t += test(id1, id2);
 
         double avr = t/4.0;
-        System.out.println("average time: " + avr);
+        System.out.println("average time: " + avr);*/
         
         System.out.println("test over\n");
     }
@@ -82,16 +69,16 @@ public class Test {
         GraphSearch search = new GraphSearch();
         
         start_time = System.currentTimeMillis();
-        System.out.println("start time: " + start_time);     
+        //System.out.println("start time: " + start_time);     
         try{
             String json = search.search(id1, id2);
 
             end_time = System.currentTimeMillis();
-            System.out.println("end time: " + end_time);
-            System.out.println(json);
+            //System.out.println("end time: " + end_time);
+            //System.out.println(json);
 
             elapse_time = end_time - start_time;
-            System.out.println(elapse_time);
+            System.out.println("elapse time: " + elapse_time);
 
             return elapse_time;
         }catch (InterruptedException e){
@@ -102,4 +89,5 @@ public class Test {
 
         return 0;
     }
+    
 }
