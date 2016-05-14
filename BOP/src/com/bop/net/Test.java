@@ -2,6 +2,7 @@ package com.bop.net;
 
 
 import com.bop.algorithm.GraphSearch;
+import com.bop.graph.*;
 
 import java.util.concurrent.ExecutionException;
 
@@ -109,7 +110,7 @@ public class Test {
         start_time = System.currentTimeMillis();
         //System.out.println("start time: " + start_time);     
         try{
-            String json = search.search(id1, id2);
+            String json = GraphPath.getPathString(search.search(id1,id2));
 
             end_time = System.currentTimeMillis();
             //System.out.println("end time: " + end_time);

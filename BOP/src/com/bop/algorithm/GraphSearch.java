@@ -25,6 +25,7 @@ public class GraphSearch {
     Future<GraphNode> rspStart = null;
     Future<GraphNode> rspEnd = null;
 
+
     /**
      * route search algorithm, public to outer
      * @param id1
@@ -41,6 +42,14 @@ public class GraphSearch {
             return result;
         }
         /** TODO second try get cache from local database */
+
+    static {
+        // preload academyClient
+        AcademyClient.preLoad();
+    }
+
+    public String search(long id1, long id2) throws InterruptedException, ExecutionException{
+
 
         /** miss the cache, try to get data from Academy API */
         Future<GraphNode> rsp1 = threadpool.submit(new RequestCall(id1));
