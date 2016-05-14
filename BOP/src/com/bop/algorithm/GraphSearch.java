@@ -1,15 +1,12 @@
 package com.bop.algorithm;
 
+import com.bop.cache.CacheUtil;
 import com.bop.graph.*;
 import com.bop.net.AcademyClient;
 
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.lang.reflect.WildcardType;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
@@ -28,19 +25,31 @@ public class GraphSearch {
     Future<GraphNode> rspStart = null;
     Future<GraphNode> rspEnd = null;
 
-    static {
-        // preload academyClient
-        AcademyClient.preLoad();
-    }
-
+    /**
+     * route search algorithm, public to outer
+     * @param id1
+     * @param id2
+     * @return
+     * @throws InterruptedException
+     * @throws ExecutionException
+     */
     public String search(long id1, long id2) throws InterruptedException, ExecutionException{
+        /** first try get cache from LruCache */
+        String result = CacheUtil.get(id1, id2);
+        if(result != null){
+            // hit the cache, return
+            return result;
+        }
+        /** TODO second try get cache from local database */
 
-        AcademyClient.count = 0;
-
+        /** miss the cache, try to get data from Academy API */
         Future<GraphNode> rsp1 = threadpool.submit(new RequestCall(id1));
         Future<GraphNode> rsp2 = threadpool.submit(new RequestCall(id2));
         // block in get method
         startNode = rsp1.get();
+        if(startNode == null){
+            return "[]";
+        }
         if(startNode instanceof PaperNode){
             //
             rspStart = threadpool.submit(new Callable<GraphNode>() {
@@ -60,6 +69,9 @@ public class GraphSearch {
         }
 
         endNode = rsp2.get();
+        if(endNode == null){
+            return "[]";
+        }
         if(endNode instanceof PaperNode){
             //
             rspEnd = threadpool.submit(new RequestCall(id2, RequestCall.GET_CITE));
@@ -72,20 +84,22 @@ public class GraphSearch {
         List<GraphPath> one_hop = h1.get();
         List<GraphPath> two_hop = h2.get();
         List<GraphPath> three_hop = h3.get();
+        //
+        List<GraphPath> paths = new ArrayList<GraphPath>();
 
-        one_hop.addAll(two_hop);
-        one_hop.addAll(three_hop);
+        paths.addAll(one_hop);
+        paths.addAll(two_hop);
+        paths.addAll(three_hop);
 
-        //List<GraphPath> paths = one_hop;
-        List<GraphPath> paths = GraphPath.filterPaths(one_hop);
-
-        //System.out.println("network get count: " + AcademyClient.count);
         //System.out.println("valid path number: " + paths.size());
-        String results = GraphPath.getPathString(paths);
+        result = GraphPath.getPathString(paths);
         
-        //writeToFile(id1, id2, paths.size(), results);
+        //writeToFile(id1, id2, paths.size(), result);
+        /** add the cache to LruCache */
+        CacheUtil.put(id1, id2, result);
+        /** add the cache to local database, run in the sub thread */
 
-        return results;
+        return result;
     }
 
     /**
@@ -113,7 +127,7 @@ public class GraphSearch {
      */
     public List<GraphPath> getTwoHop(GraphNode startNode, GraphNode endNode){
         List<GraphPath> paths = new ArrayList<GraphPath>();
-
+        /** TODO write two hop algorithm here */
         List<Long> hops = startNode.getMiddleNode(endNode);
         for(Long id : hops){
             GraphPath path = new GraphPath(startNode.getNodeId(), id, endNode.getNodeId());
@@ -157,8 +171,8 @@ public class GraphSearch {
                 paths = getThreeHopInternal((AuthorNode)startNode, (AuthorNode)endNode);
             }
         }
-
-        return paths;
+        /** filter the cycle paths */
+        return GraphPath.filterPaths(paths);
     }
 
     /**
@@ -392,8 +406,12 @@ public class GraphSearch {
      * @param result
      */
     private void writeToFile(long id1, long id2, int size, String result){
+        File dir = new File("results");
+        if(!dir.exists()){
+            dir.mkdir();
+        }
     	String filename = id1 + "_" + id2 + ".txt";
-    	File mFile = new File(filename);
+    	File mFile = new File(dir, filename);
     	FileWriter writer = null;
     	try{
     		writer = new FileWriter(mFile);

@@ -9,8 +9,10 @@ import org.apache.http.HttpEntity;
 import org.apache.http.HttpStatus;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
@@ -30,9 +32,23 @@ import java.util.List;
  */
 public class AcademyClient {
     //
-	private static final CloseableHttpClient httpClient = HttpClients.createDefault();
+	private static CloseableHttpClient httpClient = null;
+    private static HttpClientContext context = null;
 
-    public static int count = 0;
+    /**
+     * initial the httpClient instance
+     */
+    static {
+        RequestConfig requestConfig = RequestConfig.custom()
+                .setConnectTimeout(30000)  // 30s
+                .setSocketTimeout(30000)   // 30s
+                .build();
+        context = HttpClientContext.create();
+        httpClient = HttpClients.custom()
+                .setDefaultRequestConfig(requestConfig)
+                .build();
+    }
+
     /**
      * sync network request
      * @param url: must be build with the UrlBuilder
@@ -41,12 +57,10 @@ public class AcademyClient {
     public static String getAcademyResp(String url){
         //
         //System.out.println(url);
-        count++;
-        //
         //CloseableHttpClient httpClient = HttpClients.createDefault();
         HttpGet httpGet = new HttpGet(url);
         try{
-            CloseableHttpResponse response = httpClient.execute(httpGet);
+            CloseableHttpResponse response = httpClient.execute(httpGet, context);
             // get the response json
             String json = "";
             if(response.getStatusLine().getStatusCode() == HttpStatus.SC_OK){
@@ -69,6 +83,7 @@ public class AcademyClient {
                     //
                     is.close();
                     json = buffer.toString();*/
+                    //System.out.println("content-length: " + entity.getContentLength());
                 	json = EntityUtils.toString(entity);
                 }
             }
@@ -98,9 +113,12 @@ public class AcademyClient {
                 .setAttributes(attrs)
                 .build();
         String json = getAcademyResp(url);
-        List<PaperEntity> entities = JParser.getPaperEntity(json);
+        List<PaperEntity> entities = null;
+        if(!json.equals("")){
+            entities = JParser.getPaperEntity(json);
+        }
 
-        if(entities.size() <= 0){
+        if(entities == null || entities.size() <= 0){
             return null;
         }
 
@@ -140,13 +158,14 @@ public class AcademyClient {
         String attrs = "Id,AA.AuId,AA.AfId,F.FId,J.JId,C.CId,RId";
         String url = new AcademyUrlBuilder()
                 .setExpr("Id=" + paperId)
-                .setCount(1)    // a fix paperId only return one entity
+                .setCount(10)    // a fix paperId only return one entity
                 .setAttributes(attrs)
                 .build();
         String json = getAcademyResp(url);
         List<PaperEntity> entities = JParser.getPaperEntity(json);
+
         PaperNode paperNode = null;
-        if(entities.size() > 0){
+        if(entities != null && entities.size() > 0){
             PaperEntity entity = entities.get(0);
             if(entity.getAuthors().size() > 0){
                 // a paper must have authors, to fix the bug
@@ -173,7 +192,7 @@ public class AcademyClient {
         String json = getAcademyResp(url);
         List<PaperEntity> entities = JParser.getPaperEntity(json);
         AuthorNode authorNode = null;
-        if(entities.size() > 0){
+        if(entities != null && entities.size() > 0){
             authorNode = new AuthorNode(authorId);
             authorNode.setEntities(entities);
         }
@@ -216,7 +235,7 @@ public class AcademyClient {
                         .build();
                 json = getAcademyResp(url);
                 entities = JParser.getPaperEntity(json);
-                if(entities.size() > 0){
+                if(entities != null && entities.size() > 0){
                     refNode.addEntities(entities);
                 }
                 index = 0;
@@ -228,7 +247,7 @@ public class AcademyClient {
                 .build();
         json = getAcademyResp(url);
         entities = JParser.getPaperEntity(json);
-        if(entities.size() > 0){
+        if(entities != null && entities.size() > 0){
             refNode.addEntities(entities);
         }
         //System.out.println(expr);
@@ -275,7 +294,7 @@ public class AcademyClient {
                         .build();
                 json = getAcademyResp(url);
                 entities = JParser.getPaperEntity(json);
-                if(entities.size() > 0){
+                if(entities != null && entities.size() > 0){
                     for(PaperEntity entity : entities){
                         middles.add(entity.getId());
                     }
@@ -290,7 +309,7 @@ public class AcademyClient {
                 .build();
         json = getAcademyResp(url);
         entities = JParser.getPaperEntity(json);
-        if(entities.size() > 0){
+        if(entities != null && entities.size() > 0){
             for(PaperEntity entity : entities){
                 middles.add(entity.getId());
             }
@@ -320,7 +339,7 @@ public class AcademyClient {
         url = builder.setExpr(expr).build();
         json = getAcademyResp(url);
         entities = JParser.getPaperEntity(json);
-        if(entities.size() > 0){
+        if(entities != null && entities.size() > 0){
             for(PaperEntity entity : entities){
                 middles.add(entity.getId());
             }
@@ -335,12 +354,11 @@ public class AcademyClient {
      * @param paperId
      * @return
      */
-    @Deprecated
     public static CiteNode getCiteInfo(long paperId){
         String attrs = "Id,AA.AuId,AA.AfId,F.FId,J.JId,C.CId";
         String expr = "RId=" + paperId;
         String json, url;
-        int count = 1000;
+        int count = 3000;  // proper value to avoid response overflow
         int offset = 0;
         AcademyUrlBuilder builder = new AcademyUrlBuilder()
                 .setExpr(expr)
@@ -355,11 +373,15 @@ public class AcademyClient {
                     .build();
             json = getAcademyResp(url);
             entities = JParser.getPaperEntity(json);
+            if(entities == null || entities.size() == 0){
+                break;
+            }
+
             if(entities.size() > 0){
                 citeNode.addEntities(entities);
             }
+
             if(entities.size() < count){
-                //
                 break;
             }
 
@@ -369,24 +391,14 @@ public class AcademyClient {
         return citeNode;
     }
 
-    /**
-     * preLoad to init the httpClient instance
-     */
-    public static void preLoad(){
-        // empty
-    }
 
     /** Builder the Academy URL */
     public static class AcademyUrlBuilder{
         public static final String BASE_URI = "https://oxfordhk.azure-api.net/academic/v1.0/evaluate";
         public static final String SUB_KEY = "f7cc29509a8443c5b3a5e56b0e38b5a6";
-        public static final int DEFAULT_COUNT = 1000;
+        public static final int DEFAULT_COUNT = 2000; // default count param
         HashMap<String, String> params = new HashMap<String, String>();
 
-        public AcademyUrlBuilder addParam(String key, String value){
-            params.put(key, value);
-            return this;
-        }
 
         public AcademyUrlBuilder setExpr(String expr){
             params.put("expr", expr);
@@ -446,7 +458,7 @@ public class AcademyClient {
             }catch (URISyntaxException e){
                 e.printStackTrace();
             }
-            return null;
+            return "";
         }
     }
 }

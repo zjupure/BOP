@@ -10,8 +10,6 @@ import java.util.List;
  * Reverse references
  * all the paper in List<PaperNode> will cite the current paper
  *
- * because one paper may be have large cite counts
- * @see RefNode are recommended
  */
 public class CiteNode extends GraphNode {
     List<PaperNode> citePapers;

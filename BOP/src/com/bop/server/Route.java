@@ -11,8 +11,9 @@ import com.bop.algorithm.GraphSearch;
 
 @Path("/route")
 public class Route {
+	
 	@GET
-	@Produces("text/plain")
+	@Produces("application/json;charset=UTF-8")
 	public String handleGet(@QueryParam("id1") long id1, @QueryParam("id2") long id2) {
 		System.out.println("id1 = " + id1 + " id2 = " + id2);
 		GraphSearch search = new GraphSearch();
