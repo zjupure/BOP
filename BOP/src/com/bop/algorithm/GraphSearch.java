@@ -33,7 +33,7 @@ public class GraphSearch {
         AcademyClient.preLoad();
     }
 
-    public String search(long id1, long id2) throws InterruptedException, ExecutionException{
+    public List<GraphPath> search(long id1, long id2) throws InterruptedException, ExecutionException{
 
         AcademyClient.count = 0;
 
@@ -85,7 +85,7 @@ public class GraphSearch {
         
         //writeToFile(id1, id2, paths.size(), results);
 
-        return results;
+        return paths;
     }
 
     /**
