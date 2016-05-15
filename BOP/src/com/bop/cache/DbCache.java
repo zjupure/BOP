@@ -3,6 +3,7 @@ package com.bop.cache;
 
 
 import java.sql.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Created by liuchun on 2016/5/14.
@@ -13,7 +14,7 @@ public class DbCache {
 
     //  Database credentials
     private static final String USERNAME = "root";
-    private static final String PASSWORD = "yourpwd";
+    private static final String PASSWORD = "0618pure";
 
     private static final String CREATE_TABLE = "CREATE TABLE IF NOT EXISTS paths(id INTEGER NOT NULL AUTO_INCREMENT,"
                                 + "id1 BIGINT NOT NULL,"
@@ -27,6 +28,7 @@ public class DbCache {
     private Connection conn = null;
     private PreparedStatement statement = null;
 
+    private AtomicInteger openLock = new AtomicInteger(0);
     /**
      * construction method, open database link
      * create table if need
@@ -46,14 +48,19 @@ public class DbCache {
     public String get(long id1, long id2){
         String sql = String.format(QUERY_FORMAT, id1, id2);
         String result = null;
-        
-        ResultSet rs = querySQL(sql);
-        try {
-            if(rs != null && rs.first()){
-                result = rs.getString("pathStr");
+
+        synchronized (this){
+            connSQL();
+            ResultSet rs = querySQL(sql);
+            try {
+                if(rs != null && rs.first()){
+                    result = rs.getString("pathStr");
+                }
+            }catch (SQLException e){
+                e.printStackTrace();
+            }finally {
+                disConnSQL();
             }
-        }catch (SQLException e){
-            e.printStackTrace();
         }
 
         return result;
@@ -69,16 +76,22 @@ public class DbCache {
         String insert = String.format(INSERT_FORMAT, id1, id2, result);
         String update = String.format(UPDATE_FORMAT, result, id1, id2);
         String query = String.format(QUERY_FORMAT, id1, id2);
-        ResultSet rs = querySQL(query);
-        try{
-            if(rs != null && rs.next()){
-                updateSQL(update); // execute update sql
-                return;
+
+        synchronized (this){
+            connSQL();
+            ResultSet rs = querySQL(query);
+            try{
+                if(rs != null && rs.next()){
+                    updateSQL(update); // execute update sql
+                    return;
+                }
+                //
+                updateSQL(insert);  // execute insert sql
+            }catch (SQLException e){
+                e.printStackTrace();
+            }finally {
+                disConnSQL();
             }
-            //
-            updateSQL(insert);  // execute insert sql
-        }catch (SQLException e){
-            e.printStackTrace();
         }
     }
 
@@ -86,13 +99,16 @@ public class DbCache {
      * connect to database
      */
     public void connSQL(){
-        try{
-            Class.forName(JDBC_DRIVER);
-            conn = DriverManager.getConnection(DB_URL, USERNAME, PASSWORD);
-        }catch (ClassNotFoundException e){
-            e.printStackTrace();
-        }catch (SQLException e){
-            e.printStackTrace();
+        if(openLock.getAndIncrement() == 0){
+            // no conn are open
+            try{
+                Class.forName(JDBC_DRIVER);
+                conn = DriverManager.getConnection(DB_URL, USERNAME, PASSWORD);
+            }catch (ClassNotFoundException e){
+                e.printStackTrace();
+            }catch (SQLException e){
+                e.printStackTrace();
+            }
         }
     }
 
@@ -100,13 +116,16 @@ public class DbCache {
      * close the database connection
      */
     public void disConnSQL(){
-        if(conn != null){
-            try{
-                conn.close();
-            }catch (Exception e){
-                e.printStackTrace();
-            }finally{
-            	conn = null;
+        // last conn should be closed safely
+        if(openLock.getAndDecrement() == 1){
+            if(conn != null){
+                try{
+                    conn.close();
+                }catch (Exception e){
+                    e.printStackTrace();
+                }finally{
+                    conn = null;
+                }
             }
         }
     }
@@ -118,17 +137,15 @@ public class DbCache {
      */
     public ResultSet querySQL(String sql){
         ResultSet rs = null;
-        connSQL();
-        synchronized (this){
-            try{
-                statement = conn.prepareStatement(sql);
-                rs = statement.executeQuery();
-            }catch (SQLException e){
-                e.printStackTrace();
-            }finally{
-            	disConnSQL();
-            }
+
+
+        try{
+            statement = conn.prepareStatement(sql);
+            rs = statement.executeQuery();
+        }catch (SQLException e){
+            e.printStackTrace();
         }
+
         return rs;
     }
 
@@ -139,17 +156,14 @@ public class DbCache {
      */
     public int updateSQL(String sql){
         int res = 0;
-        connSQL();
-        synchronized (this){
-            try{
-                statement = conn.prepareStatement(sql);
-                res = statement.executeUpdate();
-            }catch (SQLException e){
-                e.printStackTrace();
-            }finally{
-            	disConnSQL();
-            }
+
+        try{
+            statement = conn.prepareStatement(sql);
+            res = statement.executeUpdate();
+        }catch (SQLException e){
+            e.printStackTrace();
         }
+
         return res;
     }
 }
