@@ -8,6 +8,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.*;
 
@@ -24,8 +25,8 @@ public class GraphSearch {
 
     Future<GraphNode> rspStart = null;
     Future<GraphNode> rspEnd = null;
-
-
+    // save for author request
+    HashMap<Long, Future<GraphNode>> rspMap = new HashMap<Long, Future<GraphNode>>();
     /**
      * route search algorithm, public to outer
      * @param id1
@@ -35,21 +36,13 @@ public class GraphSearch {
      * @throws ExecutionException
      */
     public String search(long id1, long id2) throws InterruptedException, ExecutionException{
-        /** first try get cache from LruCache */
+    	/** TODO first try get cache from LruCache or DbCache, all operation should be implements in CacheUtil */
+        /*
         String result = CacheUtil.get(id1, id2);
         if(result != null){
             // hit the cache, return
             return result;
-        }
-        /** TODO second try get cache from local database */
-
-    static {
-        // preload academyClient
-        AcademyClient.preLoad();
-    }
-
-    public String search(long id1, long id2) throws InterruptedException, ExecutionException{
-
+        }*/
 
         /** miss the cache, try to get data from Academy API */
         Future<GraphNode> rsp1 = threadpool.submit(new RequestCall(id1));
@@ -59,6 +52,7 @@ public class GraphSearch {
         if(startNode == null){
             return "[]";
         }
+        /** get forward reference, out link */
         if(startNode instanceof PaperNode){
             //
             rspStart = threadpool.submit(new Callable<GraphNode>() {
@@ -81,11 +75,29 @@ public class GraphSearch {
         if(endNode == null){
             return "[]";
         }
+        /** get reverse reference, in link */
         if(endNode instanceof PaperNode){
             //
             rspEnd = threadpool.submit(new RequestCall(id2, RequestCall.GET_CITE));
         }
-        //
+
+        /** [Id, AuId] or [AuId, Id], must get the full author info for the paperId */
+        if(startNode.getNodeType() != endNode.getNodeType()){
+            if(startNode instanceof PaperNode){
+                for(AuthorNode author : ((PaperNode) startNode).getAuthors()){
+                    Future<GraphNode> rsp = threadpool.submit(new RequestCall(author.getNodeId(), RequestCall.GET_AFFI));
+                    rspMap.put(author.getNodeId(), rsp);
+                }
+            }
+            if(endNode instanceof PaperNode){
+                for(AuthorNode author : ((PaperNode) endNode).getAuthors()){
+                    Future<GraphNode> rsp = threadpool.submit(new RequestCall(author.getNodeId(), RequestCall.GET_AFFI));
+                    rspMap.put(author.getNodeId(), rsp);
+                }
+            }
+        }
+
+        /** implement route algorithms */
         Future<List<GraphPath>> h1 = threadpool.submit(new RouteCall(RouteCall.ONE_HOP));
         Future<List<GraphPath>> h2 = threadpool.submit(new RouteCall(RouteCall.TWO_HOP));
         Future<List<GraphPath>> h3 = threadpool.submit(new RouteCall(RouteCall.THREE_HOP));
@@ -95,18 +107,17 @@ public class GraphSearch {
         List<GraphPath> three_hop = h3.get();
         //
         List<GraphPath> paths = new ArrayList<GraphPath>();
-
+        /** collect the results */
         paths.addAll(one_hop);
         paths.addAll(two_hop);
         paths.addAll(three_hop);
 
-        //System.out.println("valid path number: " + paths.size());
-        result = GraphPath.getPathString(paths);
+        System.out.println("valid path number: " + paths.size());
+        String result = GraphPath.getPathString(paths);
         
-        //writeToFile(id1, id2, paths.size(), result);
-        /** add the cache to LruCache */
-        CacheUtil.put(id1, id2, result);
-        /** add the cache to local database, run in the sub thread */
+        //writeToFile(startNode, endNode, paths.size(), result);
+        /** TODO keep the result to Cache */
+        //CacheUtil.put(id1, id2, result);
 
         return result;
     }
@@ -258,24 +269,22 @@ public class GraphSearch {
         /**
          * Condition two, the second hop is affiliationNode
          */
-        long authorId, affiId;
         for(AuthorNode author : startNode.getAuthors()){
+            Future<GraphNode> rsp = rspMap.get(author.getNodeId());
+            try{
+                AuthorNode authorNode = (AuthorNode)rsp.get();
 
-            authorId = author.getNodeId();
-            /** attention!!! /
-            /** TODO the middle author id cannot be endNode author?? */
-            if(authorId == endNode.getNodeId()){
-                continue; // pass
-            }
-
-            if(author.getAffiliations().size() > 0){
-                GraphNode affiNode = author.getAffiliations().get(0);
-                affiId = affiNode.getNodeId();
-                if(endNode.containAffiliation(affiId)){
-                    // exist a path
-                    GraphPath path = new GraphPath(startNode.getNodeId(), authorId, affiId, endNode.getNodeId());
+                List<Long> middles = authorNode.getCommonAffi(endNode);
+                for(Long id : middles){
+                    GraphPath path = new GraphPath(startNode.getNodeId(), author.getNodeId(),
+                            id, endNode.getNodeId());
                     paths.add(path);
                 }
+
+            }catch (InterruptedException e){
+                e.printStackTrace();
+            }catch (ExecutionException e){
+                e.printStackTrace();
             }
         }
     	
@@ -298,6 +307,7 @@ public class GraphSearch {
          */
         CiteNode citeNode = getCiteNode();
         for(PaperNode paper : startNode.getPapers()){
+            /** transform to two hop [paper, paper] */
             List<Long> middles = paper.getMiddleNode(endNode);
 
             middles.addAll(paper.getMiddleNode(citeNode));
@@ -311,24 +321,22 @@ public class GraphSearch {
         /**
          * Condition two, the next hop is affiliationNode
          */
-        long authorId, affiId;
         for(AuthorNode author : endNode.getAuthors()){
+            Future<GraphNode> rsp = rspMap.get(author.getNodeId());
+            try{
+                AuthorNode authorNode = (AuthorNode)rsp.get();
 
-            authorId = author.getNodeId();
-            /** attention!!! */
-            /** TODO the middle author id cannot be startNode author?? */
-            if(authorId == startNode.getNodeId()){
-                continue; // pass
-            }
-
-            if(author.getAffiliations().size() > 0){
-                GraphNode affiNode = author.getAffiliations().get(0);
-                affiId = affiNode.getNodeId();
-                if(startNode.containAffiliation(affiId)){
-                    // exist a path
-                    GraphPath path = new GraphPath(startNode.getNodeId(), affiId, authorId, endNode.getNodeId());
+                List<Long> middles = startNode.getCommonAffi(authorNode);
+                for(Long id : middles){
+                    GraphPath path = new GraphPath(startNode.getNodeId(), id,
+                            author.getNodeId(), endNode.getNodeId());
                     paths.add(path);
                 }
+
+            }catch (InterruptedException e){
+                e.printStackTrace();
+            }catch (ExecutionException e){
+                e.printStackTrace();
             }
         }
         return paths;
@@ -409,21 +417,24 @@ public class GraphSearch {
 
     /**
      * wirte results to log file
-     * @param id1
-     * @param id2
+     * @param startNode
+     * @param endNode
      * @param size
      * @param result
      */
-    private void writeToFile(long id1, long id2, int size, String result){
+    private void writeToFile(GraphNode startNode, GraphNode endNode, int size, String result){
         File dir = new File("results");
         if(!dir.exists()){
             dir.mkdir();
         }
+        long id1 = startNode.getNodeId(), id2 = endNode.getNodeId();
     	String filename = id1 + "_" + id2 + ".txt";
+        String title = "[" + getTypeString(startNode) + "," + getTypeString(endNode) + "]\n";
     	File mFile = new File(dir, filename);
     	FileWriter writer = null;
     	try{
     		writer = new FileWriter(mFile);
+            writer.write(title);
     		writer.write("[" + id1 + "," + id2 + "]\n");
     		writer.write("path numbers: " + size + "\n");
     		writer.write(result + "\n");
@@ -439,6 +450,21 @@ public class GraphSearch {
     		}
     	}
     	
+    }
+
+    /**
+     * get String for NodeType
+     * @param graphNode
+     * @return
+     */
+    private String getTypeString(GraphNode graphNode){
+        String type = "OtherId";
+        if(graphNode.getNodeType() == GraphNode.PAPER_NODE){
+            type = "paperId";
+        }else if(graphNode.getNodeType() == GraphNode.AUTHOR_NODE){
+            type = "AuId";
+        }
+        return type;
     }
 
     /**
@@ -488,6 +514,7 @@ public class GraphSearch {
         public static final int GET_AUTHOR = 1;
         public static final int GET_REF = 2;
         public static final int GET_CITE = 3;
+        public static final int GET_AFFI = 4;
 
         private long id;
         private int type;
@@ -512,6 +539,9 @@ public class GraphSearch {
                     break;
                 case GET_CITE:
                     graphNode = AcademyClient.getCiteInfo(id);
+                    break;
+                case GET_AFFI:
+                    graphNode = AcademyClient.getAffiInfo(id);
                     break;
                 default:
                     graphNode = AcademyClient.getIdInfo(id);

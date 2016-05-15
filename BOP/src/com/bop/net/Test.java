@@ -110,7 +110,7 @@ public class Test {
         start_time = System.currentTimeMillis();
         //System.out.println("start time: " + start_time);     
         try{
-            String json = GraphPath.getPathString(search.search(id1,id2));
+            String json = search.search(id1,id2);
 
             end_time = System.currentTimeMillis();
             //System.out.println("end time: " + end_time);

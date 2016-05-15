@@ -124,29 +124,10 @@ public class AuthorNode extends GraphNode{
      */
     private List<Long> getBridgeNodes(AuthorNode authorNode){
         List<Long> mBridges = new ArrayList<Long>();
-        /** get common papers and affiliations */
-        for(PaperNode paperNode : papers){
-            mBridges.add(paperNode.getNodeId());
-        }
-        for(GraphNode affiNode : affiliations){
-            mBridges.add(affiNode.getNodeId());
-        }
-        if(mBridges.size() == 0){
-            return mBridges;
-        }
-
-        List<Long> nBridges = new ArrayList<Long>();
-        for(PaperNode paperNode : authorNode.papers){
-            nBridges.add(paperNode.getNodeId());
-        }
-        for(GraphNode affiNode : authorNode.affiliations){
-            nBridges.add(affiNode.getNodeId());
-        }
-        if(nBridges.size() == 0){
-            return nBridges;
-        }
-        // intersection
-        mBridges.retainAll(nBridges);
+        /** get common papers*/
+        mBridges.addAll(getCommonPapers(authorNode));
+        /** get common affiliations */
+        mBridges.addAll(getCommonAffi(authorNode));
 
         return mBridges;
     }
@@ -209,6 +190,60 @@ public class AuthorNode extends GraphNode{
             }
         }
         return false;
+    }
+
+    /**
+     * get common papers between this node and authorNode
+     * @param authorNode
+     * @return
+     */
+    public List<Long> getCommonPapers(AuthorNode authorNode){
+        List<Long> mPapers = new ArrayList<Long>();
+        for(PaperNode paper : papers){
+            mPapers.add(paper.getNodeId());
+        }
+        if(mPapers.size() == 0){
+            return mPapers;
+        }
+
+        List<Long> nPapers = new ArrayList<Long>();
+        for(PaperNode paper : authorNode.papers){
+            nPapers.add(paper.getNodeId());
+        }
+        if(nPapers.size() == 0){
+            return nPapers;
+        }
+        //
+        mPapers.retainAll(nPapers);
+
+        return mPapers;
+    }
+
+    /**
+     * get common affiliation between this node and authorNode
+     * @param authorNode
+     * @return
+     */
+    public List<Long> getCommonAffi(AuthorNode authorNode){
+        List<Long> mAffi = new ArrayList<Long>();
+        for(GraphNode affi : affiliations){
+            mAffi.add(affi.getNodeId());
+        }
+        if(mAffi.size() == 0){
+            return mAffi;
+        }
+
+        List<Long> nAffi = new ArrayList<Long>();
+        for(GraphNode affi : authorNode.affiliations){
+            nAffi.add(affi.getNodeId());
+        }
+        if(nAffi.size() == 0){
+            return nAffi;
+        }
+        //
+        mAffi.retainAll(nAffi);
+
+        return mAffi;
     }
 
     /**

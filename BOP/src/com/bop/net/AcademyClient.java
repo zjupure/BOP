@@ -200,6 +200,28 @@ public class AcademyClient {
     }
 
     /**
+     * get the affiliation info for the authorId
+     * @param authorId
+     * @return
+     */
+    public static AuthorNode getAffiInfo(long authorId){
+        String attrs = "Id,AA.AuId,AA.AfId";
+        String expr = String.format("Composite(AA.AuId=%d)", authorId);
+        String url = new AcademyUrlBuilder()
+                .setExpr(expr)
+                .setAttributes(attrs)
+                .build();
+        String json = getAcademyResp(url);
+        AuthorNode authorNode = null;
+        List<PaperEntity> entities = JParser.getPaperEntity(json);
+        if(entities != null && entities.size() > 0){
+            authorNode = new AuthorNode(authorId);
+            authorNode.setEntities(entities);
+        }
+        return authorNode;
+    }
+
+    /**
      * get paperId reference paper info
      * @param paperId
      * @param rids

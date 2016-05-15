@@ -65,7 +65,7 @@ public class GraphPath {
     }
 
     /**
-     * filter the paths that containg duplicated nodes
+     * filter the paths that contain duplicated nodes
      * @param paths
      * @return
      */
