@@ -34,6 +34,7 @@ public class DbCache {
     public DbCache(){
         connSQL();
         updateSQL(CREATE_TABLE);
+        disConnSQL();
     }
 
     /**
@@ -45,6 +46,7 @@ public class DbCache {
     public String get(long id1, long id2){
         String sql = String.format(QUERY_FORMAT, id1, id2);
         String result = null;
+        
         ResultSet rs = querySQL(sql);
         try {
             if(rs != null && rs.first()){
@@ -103,6 +105,8 @@ public class DbCache {
                 conn.close();
             }catch (Exception e){
                 e.printStackTrace();
+            }finally{
+            	conn = null;
             }
         }
     }
@@ -114,12 +118,15 @@ public class DbCache {
      */
     public ResultSet querySQL(String sql){
         ResultSet rs = null;
+        connSQL();
         synchronized (this){
             try{
                 statement = conn.prepareStatement(sql);
                 rs = statement.executeQuery();
             }catch (SQLException e){
                 e.printStackTrace();
+            }finally{
+            	disConnSQL();
             }
         }
         return rs;
@@ -132,12 +139,15 @@ public class DbCache {
      */
     public int updateSQL(String sql){
         int res = 0;
+        connSQL();
         synchronized (this){
             try{
                 statement = conn.prepareStatement(sql);
                 res = statement.executeUpdate();
             }catch (SQLException e){
                 e.printStackTrace();
+            }finally{
+            	disConnSQL();
             }
         }
         return res;

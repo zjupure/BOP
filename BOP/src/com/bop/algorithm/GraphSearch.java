@@ -35,7 +35,7 @@ public class GraphSearch {
      * @throws InterruptedException
      * @throws ExecutionException
      */
-    public String search(long id1, long id2) throws InterruptedException, ExecutionException{
+    public String search(final long id1, final long id2) throws InterruptedException, ExecutionException{
     	/** TODO first try get cache from LruCache or DbCache, all operation should be implements in CacheUtil */
         
         String result = CacheUtil.get(id1, id2);
@@ -115,12 +115,21 @@ public class GraphSearch {
         paths.addAll(two_hop);
         paths.addAll(three_hop);
 
-        System.out.println("valid path number: " + paths.size());
+        //System.out.println("valid path number: " + paths.size());
         result = GraphPath.getPathString(paths);
         
         //writeToFile(startNode, endNode, paths.size(), result);
-        /** TODO keep the result to Cache */
-        CacheUtil.put(id1, id2, result);
+        /** TODO keep the result to Cache, run in the sub thread */
+        final String pathStr = result;
+        threadpool.execute(new Runnable() {
+			
+			@Override
+			public void run() {
+				// TODO Auto-generated method stub
+				CacheUtil.put(id1, id2, pathStr);
+			}
+		});
+        
 
         return result;
     }
