@@ -18,7 +18,7 @@ public class Test {
         //long id1 = 2027775552L;
         //long id2 = 2085680244L;
         //test(id1, id2);
-
+        officialTest();
         //System.out.println("all test over");
     }
 

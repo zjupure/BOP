@@ -1,6 +1,9 @@
 package com.bop.cache;
 
+import com.bop.graph.GraphNode;
+
 import java.security.MessageDigest;
+import java.util.HashMap;
 
 /**
  * Created by liuchun on 2016/5/14.
@@ -9,7 +12,9 @@ public class CacheUtil {
     /** LruCache instance */
     private static LruCache<String, String> mMemoryCache;
     /** Database Cache instance */
-    private static DbCache mDbCache = new DbCache();
+    //private static DbCache mDbCache = new DbCache();
+    /** Cache for those have massive references CiteNode */
+    private static HashMap<Long, GraphNode> mNodeCache = new HashMap<Long, GraphNode>();
     /**
      * create a LruCache in the memory, the size depends on the system max memory
      */
@@ -45,7 +50,7 @@ public class CacheUtil {
     public static void put(long id1, long id2, String results){
         String key = getMD5Hash(id1, id2);
         getLruCache().put(key, results);
-        mDbCache.put(id1, id2, results);
+        //mDbCache.put(id1, id2, results);
     }
 
     /**
@@ -65,9 +70,31 @@ public class CacheUtil {
         }
 
         /** then get data from Database Cache */
-        result = mDbCache.get(id1, id2);
+        //result = mDbCache.get(id1, id2);
 
         return result;
+    }
+
+    /**
+     * cache for the massive cite papers
+     * @param id
+     * @param graphNode
+     */
+    public static void putGraphNode(long id, GraphNode graphNode){
+        mNodeCache.put(id, graphNode);
+    }
+
+    /**
+     * get those cached GraphNodes
+     * @param id
+     * @return
+     */
+    public static GraphNode getGraphNode(long id){
+        GraphNode graphNode = null;
+        if(mNodeCache.containsKey(id)){
+            graphNode = mNodeCache.get(id);
+        }
+        return graphNode;
     }
 
     /**

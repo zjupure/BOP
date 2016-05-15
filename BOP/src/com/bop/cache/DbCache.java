@@ -9,11 +9,11 @@ import java.sql.*;
  */
 public class DbCache {
     public static final String JDBC_DRIVER = "com.mysql.jdbc.Driver";
-    public static final String DB_URL = "jdbc:mysql://localhost/Cachepool";
+    public static final String DB_URL = "jdbc:mysql://localhost/hops";
 
     //  Database credentials
     private static final String USERNAME = "root";
-    private static final String PASSWORD = "tangyiqi-123";
+    private static final String PASSWORD = "yourpwd";
 
     private static final String CREATE_TABLE = "CREATE TABLE IF NOT EXISTS paths(id INTEGER NOT NULL AUTO_INCREMENT,"
                                 + "id1 BIGINT NOT NULL,"
@@ -21,7 +21,7 @@ public class DbCache {
                                 + "pathStr MEDIUMTEXT,"
                                 + "PRIMARY KEY(id));";
     private static final String QUERY_FORMAT = "SELECT pathStr from paths WHERE id1 = %d AND id2 = %d;";
-    private static final String INSERT_FORMAT = "INSERT INTO paths values(%d, %d, \'%s\');";
+    private static final String INSERT_FORMAT = "INSERT INTO paths (id1, id2, pathStr) VALUES(%d, %d, \'%s\');";
     private static final String UPDATE_FORMAT = "UPDATE paths SET pathStr = \'%s\' WHERE id1 = %d AND id2 = %d;";
 
     private Connection conn = null;
@@ -65,11 +65,11 @@ public class DbCache {
      */
     public void put(long id1, long id2, String result){
         String insert = String.format(INSERT_FORMAT, id1, id2, result);
-        String update = String.format(UPDATE_FORMAT, id1, id2, result);
+        String update = String.format(UPDATE_FORMAT, result, id1, id2);
         String query = String.format(QUERY_FORMAT, id1, id2);
         ResultSet rs = querySQL(query);
         try{
-            if(rs != null && rs.first()){
+            if(rs != null && rs.next()){
                 updateSQL(update); // execute update sql
                 return;
             }

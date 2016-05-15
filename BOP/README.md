@@ -39,4 +39,8 @@ url增加count配置参数，默认值设为1000
 
 修复paper--->author 3-hop的bug
 
-暂时移除cache部分代码
+含重复节点的路径是否有效？路径过滤已关闭
+
+增加了LruCache和DbCache，DbCache目前是关闭状态，如要开启先配置好mySQL环境，修改DbCache类常量和CacheUtil类。
+
+缓存了一些含有大量引用的CiteNode信息

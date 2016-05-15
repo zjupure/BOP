@@ -37,12 +37,12 @@ public class GraphSearch {
      */
     public String search(long id1, long id2) throws InterruptedException, ExecutionException{
     	/** TODO first try get cache from LruCache or DbCache, all operation should be implements in CacheUtil */
-        /*
+        
         String result = CacheUtil.get(id1, id2);
         if(result != null){
             // hit the cache, return
             return result;
-        }*/
+        }
 
         /** miss the cache, try to get data from Academy API */
         Future<GraphNode> rsp1 = threadpool.submit(new RequestCall(id1));
@@ -77,8 +77,11 @@ public class GraphSearch {
         }
         /** get reverse reference, in link */
         if(endNode instanceof PaperNode){
-            //
-            rspEnd = threadpool.submit(new RequestCall(id2, RequestCall.GET_CITE));
+            // get data from caches
+            citeNode = CacheUtil.getGraphNode(endNode.getNodeId());
+            if(citeNode == null){
+                rspEnd = threadpool.submit(new RequestCall(id2, RequestCall.GET_CITE));
+            }
         }
 
         /** [Id, AuId] or [AuId, Id], must get the full author info for the paperId */
@@ -113,11 +116,11 @@ public class GraphSearch {
         paths.addAll(three_hop);
 
         System.out.println("valid path number: " + paths.size());
-        String result = GraphPath.getPathString(paths);
+        result = GraphPath.getPathString(paths);
         
         //writeToFile(startNode, endNode, paths.size(), result);
         /** TODO keep the result to Cache */
-        //CacheUtil.put(id1, id2, result);
+        CacheUtil.put(id1, id2, result);
 
         return result;
     }
@@ -192,7 +195,8 @@ public class GraphSearch {
             }
         }
         /** filter the cycle paths */
-        return GraphPath.filterPaths(paths);
+        //return GraphPath.filterPaths(paths);
+        return paths;
     }
 
     /**
@@ -406,6 +410,10 @@ public class GraphSearch {
                 if(citeNode == null){
                     try{
                         citeNode = rspEnd.get();
+                        // cache those paper has massive cited papers
+                        if(((CiteNode)citeNode).getCitePapers().size() >= 5000){
+                            CacheUtil.putGraphNode(citeNode.getNodeId(), citeNode);
+                        }
                     }catch (InterruptedException e){
                         e.printStackTrace();
                     }catch (ExecutionException e){
