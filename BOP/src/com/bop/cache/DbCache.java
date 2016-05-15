@@ -10,16 +10,16 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class DbCache {
     public static final String JDBC_DRIVER = "com.mysql.jdbc.Driver";
-    public static final String DB_URL = "jdbc:mysql://localhost/hops";
+    public static final String DB_URL = "jdbc:mysql://localhost/Cachepool";
 
     //  Database credentials
     private static final String USERNAME = "root";
-    private static final String PASSWORD = "0618pure";
+    private static final String PASSWORD = "";
 
     private static final String CREATE_TABLE = "CREATE TABLE IF NOT EXISTS paths(id INTEGER NOT NULL AUTO_INCREMENT,"
                                 + "id1 BIGINT NOT NULL,"
                                 + "id2 BIGINT NOT NULL,"
-                                + "pathStr MEDIUMTEXT,"
+                                + "pathStr LONGTEXT,"
                                 + "PRIMARY KEY(id));";
     private static final String QUERY_FORMAT = "SELECT pathStr from paths WHERE id1 = %d AND id2 = %d;";
     private static final String INSERT_FORMAT = "INSERT INTO paths (id1, id2, pathStr) VALUES(%d, %d, \'%s\');";
