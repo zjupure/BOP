@@ -212,8 +212,9 @@ public class GraphSearch {
     	RefNode refNode = getRefNode();
         CiteNode citeNode = getCiteNode();
         for(PaperNode paper : refNode.getRefPapers()){
+            /** paperNode--->Non paperNode--->paperNode */
             List<Long> middles = paper.getMiddleNode(endNode);
-
+            /** paperNode--->paperNode--->paperNode */
             middles.addAll(paper.getMiddleNode(citeNode));
             // generate the path
             for(Long id : middles){
@@ -255,8 +256,9 @@ public class GraphSearch {
         RefNode refNode = getRefNode();
     	for(PaperNode paper : endNode.getPapers()){
     		/** transform to two hop [paper, paper] */
+            /** paperNode--->Non paperNode--->paperNode */
     		List<Long> middles = startNode.getMiddleNode(paper);
-
+            /** paperNode--->paperNode--->paperNode */
     		middles.addAll(refNode.getMiddleNode(paper));
     		
     		// generate the path
@@ -308,8 +310,9 @@ public class GraphSearch {
         CiteNode citeNode = getCiteNode();
         for(PaperNode paper : startNode.getPapers()){
             /** transform to two hop [paper, paper] */
+            /** paperNode--->Non paperNode--->paperNode */
             List<Long> middles = paper.getMiddleNode(endNode);
-
+            /** paperNode--->paperNode--->paperNode */
             middles.addAll(paper.getMiddleNode(citeNode));
             // generate the path
             for(Long id : middles){

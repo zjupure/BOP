@@ -2,7 +2,6 @@ package com.bop.net;
 
 
 import com.bop.algorithm.GraphSearch;
-import com.bop.graph.*;
 
 import java.util.concurrent.ExecutionException;
 
@@ -16,10 +15,9 @@ public class Test {
         //pressureTest();
     	//simpleTest();
         officialTest();
-        //long id1 = 2126125555L;
-        //long id2 = 2153635508L;
+        //long id1 = 2027775552L;
+        //long id2 = 2085680244L;
         //test(id1, id2);
-        officialTest();
 
         //System.out.println("all test over");
     }
@@ -28,7 +26,7 @@ public class Test {
         long id1 = 2126125555L;
         long id2 = 2153635508L;  // massive paper has cited this paper
         // paperId, paperId
-        ///long t = test(id1, id2);
+        long t = test(id1, id2);
 
         id1 = 2292217923L;
         id2 = 2100837269L;  // massive paper around 12w has cited this paper

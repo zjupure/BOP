@@ -16,12 +16,13 @@ public class DbCache {
     private static final String PASSWORD = "tangyiqi-123";
 
     private static final String CREATE_TABLE = "CREATE TABLE IF NOT EXISTS paths(id INTEGER NOT NULL AUTO_INCREMENT,"
-            + "id1 BIGINT NOT NULL,"
-            + "id2 BIGINT NOT NULL,"
-            + "pathStr MEDIUMTEXT,"
-            + "PRIMARY KEY(id));";
-    private static final String QUERY_FORMAT = "SELECT * from paths WHERE id1 = %d AND id2 = %d;";
-    private static final String INSERT_FORMAT = "INSERT INTO paths values(%d, %d, %s);";
+                                + "id1 BIGINT NOT NULL,"
+                                + "id2 BIGINT NOT NULL,"
+                                + "pathStr MEDIUMTEXT,"
+                                + "PRIMARY KEY(id));";
+    private static final String QUERY_FORMAT = "SELECT pathStr from paths WHERE id1 = %d AND id2 = %d;";
+    private static final String INSERT_FORMAT = "INSERT INTO paths values(%d, %d, \'%s\');";
+    private static final String UPDATE_FORMAT = "UPDATE paths SET pathStr = \'%s\' WHERE id1 = %d AND id2 = %d;";
 
     private Connection conn = null;
     private PreparedStatement statement = null;
@@ -45,10 +46,38 @@ public class DbCache {
         String sql = String.format(QUERY_FORMAT, id1, id2);
         String result = null;
         ResultSet rs = querySQL(sql);
-        if(rs != null){
-
+        try {
+            if(rs != null && rs.first()){
+                result = rs.getString("pathStr");
+            }
+        }catch (SQLException e){
+            e.printStackTrace();
         }
+
         return result;
+    }
+
+    /**
+     * put result into cache
+     * @param id1
+     * @param id2
+     * @param result
+     */
+    public void put(long id1, long id2, String result){
+        String insert = String.format(INSERT_FORMAT, id1, id2, result);
+        String update = String.format(UPDATE_FORMAT, id1, id2, result);
+        String query = String.format(QUERY_FORMAT, id1, id2);
+        ResultSet rs = querySQL(query);
+        try{
+            if(rs != null && rs.first()){
+                updateSQL(update); // execute update sql
+                return;
+            }
+            //
+            updateSQL(insert);  // execute insert sql
+        }catch (SQLException e){
+            e.printStackTrace();
+        }
     }
 
     /**

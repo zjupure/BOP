@@ -8,7 +8,8 @@ import java.security.MessageDigest;
 public class CacheUtil {
     /** LruCache instance */
     private static LruCache<String, String> mMemoryCache;
-
+    /** Database Cache instance */
+    private static DbCache mDbCache = new DbCache();
     /**
      * create a LruCache in the memory, the size depends on the system max memory
      */
@@ -44,6 +45,7 @@ public class CacheUtil {
     public static void put(long id1, long id2, String results){
         String key = getMD5Hash(id1, id2);
         getLruCache().put(key, results);
+        mDbCache.put(id1, id2, results);
     }
 
     /**
@@ -54,7 +56,18 @@ public class CacheUtil {
      */
     public static String get(long id1, long id2){
         String key = getMD5Hash(id1, id2);
-        return getLruCache().get(key);
+        String result;
+
+        /** first get data from LruCache */
+        result = getLruCache().get(key);
+        if(result != null){
+            return result;  // hit the LruCache
+        }
+
+        /** then get data from Database Cache */
+        result = mDbCache.get(id1, id2);
+
+        return result;
     }
 
     /**

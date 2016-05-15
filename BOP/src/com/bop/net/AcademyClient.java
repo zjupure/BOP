@@ -54,7 +54,7 @@ public class AcademyClient {
      * @param url: must be build with the UrlBuilder
      * @return json string
      */
-    public static String getAcademyResp(String url){
+    public static String getAcademyResp(URI url){
         //
         //System.out.println(url);
         //CloseableHttpClient httpClient = HttpClients.createDefault();
@@ -108,7 +108,7 @@ public class AcademyClient {
         String format = "Or(Id=%d,Composite(AA.AuId=%d))";
         String expr = String.format(format, id, id);
         String attrs = "Id,AA.AuId,AA.AfId,F.FId,J.JId,C.CId,RId";
-        String url = new AcademyUrlBuilder()
+        URI url = new AcademyUrlBuilder()
                 .setExpr(expr)
                 .setAttributes(attrs)
                 .build();
@@ -156,7 +156,7 @@ public class AcademyClient {
      */
     public static PaperNode getPaperInfo(long paperId){
         String attrs = "Id,AA.AuId,AA.AfId,F.FId,J.JId,C.CId,RId";
-        String url = new AcademyUrlBuilder()
+        URI url = new AcademyUrlBuilder()
                 .setExpr("Id=" + paperId)
                 .setCount(10)    // a fix paperId only return one entity
                 .setAttributes(attrs)
@@ -185,7 +185,7 @@ public class AcademyClient {
     public static AuthorNode getAuthorInfo(long authorId){
         String attrs = "Id,AA.AuId,AA.AfId,F.FId,J.JId,C.CId,RId";
         String expr = String.format("Composite(AA.AuId=%d)", authorId);
-        String url = new AcademyUrlBuilder()
+        URI url = new AcademyUrlBuilder()
                 .setExpr(expr)
                 .setAttributes(attrs)
                 .build();
@@ -207,7 +207,7 @@ public class AcademyClient {
     public static AuthorNode getAffiInfo(long authorId){
         String attrs = "Id,AA.AuId,AA.AfId";
         String expr = String.format("Composite(AA.AuId=%d)", authorId);
-        String url = new AcademyUrlBuilder()
+        URI url = new AcademyUrlBuilder()
                 .setExpr(expr)
                 .setAttributes(attrs)
                 .build();
@@ -230,7 +230,8 @@ public class AcademyClient {
     public static RefNode getPaperRefInfo(long paperId, List<Long> rids){
         String attrs = "Id,AA.AuId,AA.AfId,F.FId,J.JId,C.CId,RId";
         String format = "Or(%s,Id=%d)";
-        String expr = "", url, json;
+        String expr = "", json;
+        URI url;
         AcademyUrlBuilder builder = new AcademyUrlBuilder().setAttributes(attrs);
         List<PaperEntity> entities;
         RefNode refNode = new RefNode(paperId);
@@ -251,9 +252,9 @@ public class AcademyClient {
             expr = String.format(format, expr, rids.get(i));
             //System.out.println(expr);
             // start network request
-            if(index >= 100){
+            if(index >= 50){
                 url = builder.setExpr(expr)
-                        .setCount(100)
+                        .setCount(50)
                         .build();
                 json = getAcademyResp(url);
                 entities = JParser.getPaperEntity(json);
@@ -265,7 +266,7 @@ public class AcademyClient {
         }
         // the last request
         url = builder.setExpr(expr)
-                .setCount(100)
+                .setCount(50)
                 .build();
         json = getAcademyResp(url);
         entities = JParser.getPaperEntity(json);
@@ -275,6 +276,48 @@ public class AcademyClient {
         //System.out.println(expr);
 
         return refNode;
+    }
+
+    /**
+     * get all the papers that cite the paperId
+     * @param paperId
+     * @return
+     */
+    public static CiteNode getCiteInfo(long paperId){
+        String attrs = "Id,AA.AuId,AA.AfId,F.FId,J.JId,C.CId";
+        String expr = "RId=" + paperId;
+        String json;
+        int count = 3000;  // proper value to avoid response overflow
+        int offset = 0;
+        AcademyUrlBuilder builder = new AcademyUrlBuilder()
+                .setExpr(expr)
+                .setAttributes(attrs);
+
+        List<PaperEntity> entities;
+        CiteNode citeNode = new CiteNode(paperId);
+
+        while(true){
+            URI url = builder.setCount(count)
+                    .setOffset(offset)
+                    .build();
+            json = getAcademyResp(url);
+            entities = JParser.getPaperEntity(json);
+            if(entities == null || entities.size() == 0){
+                break;
+            }
+
+            if(entities.size() > 0){
+                citeNode.addEntities(entities);
+            }
+
+            if(entities.size() < count){
+                break;
+            }
+
+            offset += count;
+        }
+
+        return citeNode;
     }
 
     /**
@@ -288,7 +331,8 @@ public class AcademyClient {
         List<Long> middles = new ArrayList<Long>();
         String or_format = "Or(%s,Id=%d)";
         String and_format = "And(%s,RId=%d)";
-        String expr = "", url, json;
+        String expr = "", json;
+        URI url;
         AcademyUrlBuilder builder = new AcademyUrlBuilder().setAttributes("Id");
         List<PaperEntity> entities;
 
@@ -352,7 +396,8 @@ public class AcademyClient {
         String and_format = "And(%s,RId=%d)";
         String[] type_format = {"Id=%d", "Composite(AA.AuId=%d)", "Composite(F.FId=%d)", "Composite(J.JId=%d)",
                 "Composite(C.CId=%d)"};
-        String expr = "", url, json;
+        String expr, json;
+        URI url;
         AcademyUrlBuilder builder = new AcademyUrlBuilder().setAttributes("Id");
         List<PaperEntity> entities;
 
@@ -369,48 +414,6 @@ public class AcademyClient {
         System.out.println(expr);
 
         return middles;
-    }
-
-    /**
-     * get all the papers that cite the paperId
-     * @param paperId
-     * @return
-     */
-    public static CiteNode getCiteInfo(long paperId){
-        String attrs = "Id,AA.AuId,AA.AfId,F.FId,J.JId,C.CId";
-        String expr = "RId=" + paperId;
-        String json, url;
-        int count = 3000;  // proper value to avoid response overflow
-        int offset = 0;
-        AcademyUrlBuilder builder = new AcademyUrlBuilder()
-                .setExpr(expr)
-                .setAttributes(attrs);
-
-        List<PaperEntity> entities;
-        CiteNode citeNode = new CiteNode(paperId);
-
-        while(true){
-            url = builder.setCount(count)
-                    .setOffset(offset)
-                    .build();
-            json = getAcademyResp(url);
-            entities = JParser.getPaperEntity(json);
-            if(entities == null || entities.size() == 0){
-                break;
-            }
-
-            if(entities.size() > 0){
-                citeNode.addEntities(entities);
-            }
-
-            if(entities.size() < count){
-                break;
-            }
-
-            offset += count;
-        }
-
-        return citeNode;
     }
 
 
@@ -470,17 +473,17 @@ public class AcademyClient {
         }
 
         /** builder the url */
-        public String build(){
+        public URI build(){
             try{
                 URI uri = new URIBuilder(BASE_URI)
                         .setParameters(generatePaparms())
                         .build();
                 //
-                return uri.toString();
+                return uri;
             }catch (URISyntaxException e){
                 e.printStackTrace();
             }
-            return "";
+            return null;
         }
     }
 }

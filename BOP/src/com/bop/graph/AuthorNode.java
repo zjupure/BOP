@@ -141,12 +141,22 @@ public class AuthorNode extends GraphNode{
      */
     private List<Long> getBridgeNodes(CiteNode citeNode){
         List<Long> mPapers = new ArrayList<Long>();
-
-        for(PaperNode paperNode : citeNode.citePapers){
-            if(isAdjacent(paperNode)){
-                mPapers.add(paperNode.getNodeId());
-            }
+        for(PaperNode paper : papers){
+            mPapers.add(paper.getNodeId());
         }
+        if(mPapers.size() == 0){
+            return mPapers;
+        }
+
+        List<Long> nPapers = new ArrayList<Long>();
+        for(PaperNode paper : citeNode.citePapers){
+            nPapers.add(paper.getNodeId());
+        }
+        if(nPapers.size() == 0){
+            return nPapers;
+        }
+        //
+        mPapers.retainAll(nPapers);
 
         return mPapers;
     }
