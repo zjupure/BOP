@@ -12,13 +12,13 @@ public class Test {
 
     public static void main(String[] args) {
     	
-        //pressureTest();
+        pressureTest();
     	//simpleTest();
-        officialTest();
+        //officialTest();
         //long id1 = 2027775552L;
         //long id2 = 2085680244L;
         //test(id1, id2);
-        officialTest();
+        //officialTest();
         //System.out.println("all test over");
     }
 
